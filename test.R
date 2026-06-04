@@ -1,10 +1,10 @@
-library(RTMB)
-library(R6)
-library(Matrix)
+# library(RTMB)
+# library(R6)
+# library(Matrix)
 library(ggplot2)
+library(acousticMove)
 
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
-library(acousticMove)
 
 # files <- paste0("R/", dir("R"))
 # invisible(lapply(files, source))
@@ -36,9 +36,10 @@ ggplot(data = grid, aes(x=x, y=y)) +
   scale_fill_viridis_c("Habitat") +
   theme_bw()
 
-obj$makeADFun(alpha, beta, q, mu, gamma, emission_rate = emissionrate, study_period = studyperiod, control=list())
-fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr)
-reList(fit$par)
+obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod, control=list())
+
+# fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr)
+# reList(fit$par)
 
 process_data_movement(obj, delta_t = 0.5)
 make_ad_fun_move(obj, alpha, beta, gamma = gamma, mu = mu, control = list())

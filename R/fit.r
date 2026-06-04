@@ -178,6 +178,9 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
   m <- nrow(self$statespace)
   xmax <- max(self$designmatrix)
 
+  emissionrate <- as.numeric(self$emissionrate)
+  studyperiod <- as.numeric(self$studyperiod)
+
   ## Build e^(Q-Lambda)*t * v as an atomic.
   control$tranpose <- TRUE
   expAv_forward <- make_expav_atomic(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma, control = control)
@@ -207,7 +210,7 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
       theta <- c(theta, gamma)
     }
     
-    detRate <- self$emissionrate*q
+    detRate <- emissionrate*q
     logdetRate <- log(detRate)
         
     N <- length(observations)
@@ -237,7 +240,7 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
         ll <- ll + log(pstate[observations[[i]]$known_fate["state_id"]])
       }else{
         ## Right censoring
-        theta[nstates+1] <- self$studyperiod - timesi[nobsi]      
+        theta[nstates+1] <- studyperiod - timesi[nobsi]      
         pstate <- expAv_forward(theta)
         logpstate <- log(pstate)
         maxlp <- max(logpstate)
