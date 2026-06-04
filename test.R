@@ -6,16 +6,15 @@ library(ggplot2)
 files <- paste0("R/", dir("R"))
 invisible(lapply(files, source))
 
-
 ## Create a shape file and simulation surface:
 set.seed(1234)
-grid <- simulate_gmrf(x = seq(-1, 1, 0.05), y = seq(-1, 1, 0.05), nhabitat = 1, kappa = 0.95)
+grid <- simulate_gmrf(x = seq(-1, 1, 0.05), y = seq(-1, 1, 0.05), nhabitat = 1, kappa = 1)
 grid$habitat_1 <- scale(grid$habitat_1)
 
-recs <- expand.grid(x = seq(-0.9, 0.9, 0.25), y = seq(-0.9, 0.9, 0.25))
+recs <- expand.grid(x = seq(-0.9, 0.9, 0.2), y = seq(-0.9, 0.9, 0.2))
 recs$id <- 1:nrow(recs)
 
-alpha <- 0.15
+alpha <- 0.2
 beta <- c(0.01, 0.15)
 q <- 0.03
 mu <- NULL
@@ -29,7 +28,9 @@ obj$modelSetUp(formula = ~ 0 + habitat_1)
 obj$simulate(N=15, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
 ggplot(data = grid, aes(x=x, y=y)) + 
   geom_tile(aes(fill = habitat_1)) +
-  geom_path(data = obj$sim_move |> subset(animal_id == 1), aes(x = x, y = y, colour = factor(animal_id))) + 
+  geom_path(data = obj$sim_move |> subset(animal_id == 1), aes(x = x, y = y), col = 'black') + 
+  geom_point(data = recs, aes(x=x, y=y), shape = 3, col = 'red', size = 3) +
+  scale_fill_viridis_c("Habitat") +
   theme_bw()
 
 obj$makeADFun(alpha, beta, q, mu, gamma, emission_rate = emissionrate, study_period = studyperiod, control=list())
@@ -51,6 +52,17 @@ ggplot(data = grid, aes(x=x, y=y)) +
   geom_tile(aes(fill = habitat_1)) +
   geom_path(data = obj$sim_move, aes(x = x, y = y), colour = "red") + 
   geom_path(data = path$path, aes(x = x, y = y), colour = "green") + 
+  theme_bw()
+
+Q <- obj$calculateQ(alpha, beta, mu, gamma)
+expQ <- expm::expm(as.matrix(Q)*50)
+
+ggplot(data = grid, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = diag(expQ))) +
+  theme_bw()
+
+ggplot(data = grid, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = path$forwardprob[1,,50])) +
   theme_bw()
 
 p_total <- rowSums(path$forwardprob[1,,])*0.1

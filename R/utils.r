@@ -305,8 +305,8 @@ generator_design_gr <- function(self, formula){
 
 #' Extract Default Values
 #'
-#' @param controlValue
-#' @param defaultValue
+#' @param controlValue Any value which includes NULL.
+#' @param defaultValue A set, non NULL value to return if controlValue is NULL.
 #' 
 #' @return controlValue if it is not NULL, or defaultValue.
 #'
@@ -318,6 +318,13 @@ extractControls <- function(controlValue, defaultValue){
     return(defaultValue)
 }
 
+#' Re-List parameters
+#'
+#' @param pars vector from a fitted object, or RTMB object parameters.
+#' 
+#' @return List of parameters back on the real scale.
+#'
+#' @export
 reList <- function(pars){
   out <- list()
   out$alpha <- as.numeric(exp(pars[names(pars) == "logalpha"]))
@@ -328,6 +335,17 @@ reList <- function(pars){
   return(out)
 }
 
+#' Check initial values
+#'
+#' @param self R6 object for fitting Acoustic telemetry data.
+#' @param alpha Difussion parameter in movement process.
+#' @param beta Advection parameter relating to covariates in movement process. If OU process is included, the final term relates to the OU process.
+#' @param gamma Vector of length 2, of a point of attraction for the animals in an OU process (default = NULL). Not included when NULL.
+#' @param verbose Whether or not to print a warning if values are not valid.
+#'
+#' @details Test if alpha^2 - dx*(max(abs(beta %*% X))) is negative.
+#'  
+#' @export
 initCheck <- function(self, alpha, beta, gamma = NULL, verbose = FALSE){
   dx <- self$resolution[1]
   ndesign <- ncol(self$designmatrix)
@@ -342,6 +360,14 @@ initCheck <- function(self, alpha, beta, gamma = NULL, verbose = FALSE){
   return(test)
 }
 
+#' Initialize random starting values
+#'
+#' @param self R6 object for fitting Acoustic telemetry data.
+#' @param pars vector from a fitted object, or RTMB object parameters.
+#' 
+#' @return pars vector ready for fitting.
+#'
+#' @export
 initValues <- function(self, pars){
   pars["logalpha"] <- pars["logalpha"] + rnorm(1, 0, 0.2)
   pars[names(pars) == "beta"] <- pars[names(pars) == "beta"] + rnorm(length(pars[names(pars) == "beta"]), 0, 0.2)
