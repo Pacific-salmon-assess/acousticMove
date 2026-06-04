@@ -3,8 +3,11 @@ library(R6)
 library(Matrix)
 library(ggplot2)
 
-files <- paste0("R/", dir("R"))
-invisible(lapply(files, source))
+# remotes::install_github("Pacific-salmon-assess/acousticMove")
+library(acousticMove)
+
+# files <- paste0("R/", dir("R"))
+# invisible(lapply(files, source))
 
 ## Create a shape file and simulation surface:
 set.seed(1234)

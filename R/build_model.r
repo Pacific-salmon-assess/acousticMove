@@ -1,5 +1,6 @@
 #' @import RTMB
 #' @importFrom R6 R6Class 
+#' @import Matrix
 NULL
 
 #' Base class for Acoustic Telemetry Models
