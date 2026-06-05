@@ -13,6 +13,11 @@
 simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox = NULL, mu = NULL){
   studyperiod <- self$studyperiod
 
+  if(is.vector(gamma)){
+    if(N > 1){ gamma <- t(replicate(N, gamma))
+    }else{gamma <- matrix(gamma, nrow = 1, ncol = 2)} 
+  }
+
   m <- nrow(self$statespace)
   if(!is.null(startbbox)){
     x0poss <- self$statespace$x >= startbbox['xmin'] & self$statespace$x <= startbbox['xmax'] & 
@@ -22,48 +27,32 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
     x0 <- sample(m, N, replace = TRUE)
   }
   nstates <- self$nstates + !is.null(mu)
-  Q <- make_generator(self, alpha = alpha, beta = beta, mu = mu, gamma = gamma, nstates = nstates, dx = self$resolution[1])
-  Qd <- -diag(Q)  ## Exit rate:
 
-  test <- initCheck(self, alpha, beta, gamma, verbose = FALSE)
+  ## check by making gamma the centroid:
+  if(!is.null(gamma)){ check_gamma <- c(mean(self$statespace$x), mean(self$statespace$y))
+  }else{ check_gamma <- NULL }
+
+  test <- initCheck(self, alpha, beta, check_gamma, verbose = FALSE)
   if(test <= 0) stop("alpha value is too small relative to beta. Minimum is ", sqrt(alpha^2 + abs(test)),".\n")
   
   rookstates <- cbind(self$statespace[,grep("Rook", names(self$statespace))])  ## Add mortality state
-  if(!is.null(mu)) rookstates <- cbind(rookstates, m+1)
-  
-  ## Add checks
-  # check for empty neighbour sets after NA removal
-  empty_neighbours <- which(
-    apply(rookstates, 1, function(x) sum(!is.na(x))) == 0
-  )
-  if (length(empty_neighbours) > 0) {
-    warning(sprintf(
-      "%d cell(s) have no valid neighbours after NA removal: cells %s",
-      length(empty_neighbours),
-      paste(empty_neighbours, collapse = ", ")
-    ))
-  }
-  
-  # check absorbing state Q rows are zeroed
-  if (!is.null(self$absorbingstates)) {
-    abs_row_sums <- rowSums(Q)[self$absorbingstates]
-    if (any(abs(abs_row_sums) > 1e-10)) {
-      warning(sprintf(
-        "Absorbing state(s) have non-zero Q row sums (max abs = %.2e). Check Q construction.",
-        max(abs(abs_row_sums))
-      ))
-    }
-  }
-  
+  if(!is.null(mu)) rookstates <- cbind(rookstates, m+1)  
 
   haz <- numeric(m+1)
   ndets <- table(self$detectors$state_id)
   haz[as.numeric(names(ndets))] <- ndets*self$emissionrate*q
   J <- nrow(self$detectors)
 
+  ## Quick subset of detectors in states:
+  posdetectors <- lapply(self$statespace$state_id, FUN = function(i){self$detectors |> subset(state_id == i)})
+
   true.movement <- NULL
   observations <- list()
   for( i in 1:N ){
+    Q <- make_generator(self, alpha = alpha, beta = beta, mu = mu, gamma = gamma[i,], nstates = nstates, dx = self$resolution[1])
+    Qd <- -diag(Q)  ## Exit rate:
+    if(any(Qd < 0)) stop("Negative exit rate (positive diagonal) for some state in the generator Q.")
+    
     statei <- x0[i]
     timei <- 0
     obsi <- data.frame(animal_id = i, state_id = x0[i], detector_id = NA, time = 0)
@@ -74,11 +63,6 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
       if(statei[j] %in% self$absorbingstates){ ## Stays here the rest of the time.
         z <- studyperiod + 1
       }else{
-        # guard against zero exit rate
-        if(Qd[statei[j]] <= 0) {
-          warning(sprintf("Zero exit rate at cell %d, individual %d", statei[j], i))
-          break
-        }
         z <- rexp(1, Qd[statei[j]]) ## Residence time.
       }
       ## Check if stay over the study period.
@@ -90,9 +74,9 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
       ## Check obs:
       nobs <- rpois(1, z*haz[statei[j]])
       if(nobs > 0){
-        posdetectors <- self$detectors |> subset(state_id == statei[j])
-        smp <- sample(nrow(posdetectors ), nobs, replace = TRUE)
-        obsij <- data.frame(animal_id = i, state_id = statei[j], detector_id = posdetectors[smp, "detector_id"], time = ti + sort(runif(nobs, 0, z)))
+        detz <- posdetectors[[statei[j]]]
+        smp <- sample(nrow(detz), nobs, replace = TRUE)
+        obsij <- data.frame(animal_id = i, state_id = statei[j], detector_id = detz[smp, "detector_id"], time = ti + sort(runif(nobs, 0, z)))
         obsi <- rbind(obsi, obsij)
       }
       if(statei[j] %in% c(self$absorbingstates, m+1)){

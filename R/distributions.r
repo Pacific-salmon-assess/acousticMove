@@ -130,5 +130,4 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
   F <- MakeTape(expAv_atomic, theta)
   expAv_forward <- F$atomic()
   return(expAv_forward)
-
 }

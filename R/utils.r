@@ -330,7 +330,7 @@ reList <- function(pars){
   out$alpha <- as.numeric(exp(pars[names(pars) == "logalpha"]))
   out$beta <- as.numeric(pars[names(pars) == "beta"])
   if("logitq" %in% names(pars)) out$q <- as.numeric(plogis(pars[names(pars) == "logitq"]))
-  if("gamma" %in% names(pars)) out$gamma <- as.numeric(pars[names(pars) == "gamma"])
+  if("gamma" %in% names(pars)) out$gamma <- matrix(as.numeric(pars[names(pars) == "gamma"]), ncol = 2)
   if("logmu" %in% names(pars)) out$mu <- as.numeric(exp(pars[names(pars) == "logmu"]))
   return(out)
 }
@@ -373,9 +373,9 @@ initValues <- function(self, pars){
   pars[names(pars) == "beta"] <- pars[names(pars) == "beta"] + rnorm(length(pars[names(pars) == "beta"]), 0, 0.2)
   pars[names(pars) == "logitq"] <- pars[names(pars) == "logitq"] + rnorm(1, 0, 0.5)
   pars[names(pars) == "logmu"] <- pars[names(pars) == "logmu"] + rnorm(1, 0, 0.5)
-  pars[names(pars) == "gamma"] <- pars[names(pars) == "gamma"] + rnorm(2, 0, 3)*self$resolution
+  pars[names(pars) == "gamma"] <- pars[names(pars) == "gamma"] + rnorm(sum(names(pars) == "gamma"), 0, 3)*self$resolution[1]
   pars_norm <- reList(pars)
-  test <- initCheck(self, pars_norm$alpha, pars_norm$beta, pars_norm$gamma, FALSE)
+  test <- initCheck(self, pars_norm$alpha, pars_norm$beta, drop(pars_norm$gamma[1,]), FALSE)
   if(test <= 0) pars["logalpha"] <- log(sqrt(pars_norm$alpha^2 + abs(test))) + 0.01
   return(pars)
 }

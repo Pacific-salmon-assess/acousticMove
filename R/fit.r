@@ -19,25 +19,32 @@
 #' @export
 vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tstart = 0, tend = NULL, deltat = NULL, control = list()){
 
+  N <- length(self$observations)
+  if(is.vector(gamma)){
+    if(N > 1){ gamma <- t(replicate(N, gamma))
+    }else{gamma <- matrix(gamma, nrow = 1, ncol = 2)} 
+  }
+
   if(is.null(tend)) tend <- self$studyperiod
   if(is.null(deltat)) deltat <- 1
 
   tsteps = seq(tstart, tend, by = deltat)
   nsteps <- length(tsteps)
-  nstates <- self$nstates
-  if(!is.null(mu)) nstates <- nstates + 1
+  nstates <- self$nstates + !is.null(mu)
   
   control$tranpose <- FALSE
   control$tolerance <- 1e-8
-  expAv_atomic <- make_expav_atomic(self, alpha, beta, q, mu, gamma, control = control)
+  expAv_atomic <- make_expav_atomic(self, alpha, beta, q, mu, gamma[1,1:2], control = control)
 
   control$tranpose <- TRUE
-  expAv_tranpose <- make_expav_atomic(self, alpha, beta, q, mu, gamma, control = control)
+  expAv_tranpose <- make_expav_atomic(self, alpha, beta, q, mu, gamma[1,1:2], control = control)
 
   theta <- c(numeric(nstates), 0, alpha, beta, q)
   if(!is.null(mu)) theta <- c(theta, mu)
-  if(!is.null(gamma)) theta <- c(theta, gamma)
-  
+  if(!is.null(gamma)){
+    indx_gamma <- length(theta) + 1:2
+    theta <- c(theta, gamma[1,1:2])
+  }
   N <- length(self$observations)
   forward_all <- array(0, c(N, nstates, nsteps))
   reverse_all <- array(0, c(N, nstates, nsteps))
@@ -53,6 +60,8 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
   
     forwardprob <- matrix(0, nrow = nstates, ncol = nsteps)
     forwardprob[obstatek[1],1] <- 1
+
+    theta[indx_gamma] <- gamma[i,1:2]
 
     ## Forward algorithm for MMPP.
     for(i in 2:nsteps ){
@@ -167,13 +176,24 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
     logmu <- log(mu)
     par$logmu <- logmu
   }
+  
+  N <- length(self$observations)
+
+  if(is.vector(gamma)){
+    gamma <- matrix(gamma, nrow = 1, ncol = 2)
+  }
   if(!is.null(gamma)) par$gamma <- gamma
   
-  nstates <- self$nstates
-  if(!is.null(mu)){
-    nstates <- nstates + 1
-  }
+  nstates <- self$nstates + !is.null(mu)
   observations <- self$observations
+
+  ## nstates + time + alpha + beta + q + mu + gamma
+  ntheta <- nstates + 1 + 1 + length(beta) + 1 + length(mu) + length(gamma[1,])
+  alpha_indx <- nstates + 1 + 1
+  beta_indx <- nstates + 1 + 1 + 1:length(beta)
+  q_indx <- max(beta_indx) + 1
+  mu_indx <- max(q_indx) + 1
+  gamma_indx <-  max(q_indx) + length(mu) + 1:2
 
   m <- nrow(self$statespace)
   xmax <- max(self$designmatrix)
@@ -183,8 +203,11 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
 
   ## Build e^(Q-Lambda)*t * v as an atomic.
   control$tranpose <- TRUE
-  expAv_forward <- make_expav_atomic(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma, control = control)
-
+  control$mmpp <- TRUE
+  gamma_check <- NULL
+  if(!is.null(gamma)) gamma_check <- c(0,0)
+  expAv_forward <- make_expav_atomic(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma_check, control = control)
+  
   mmpp_negll <- function(par){
     ####### Sometimes necessary to avoid rtmb errors #######
     # "[<-" <- RTMB::ADoverload("[<-")
@@ -197,28 +220,30 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
     q <- 1/(1+exp(-logitq))
 
     ## theta = v, time, pars:
-    v <- numeric(nstates)
-    theta <- c(v, 0, alpha, beta, q)
-    
+    theta <- AD(numeric(ntheta))
+    theta[alpha_indx] <- alpha
+    theta[beta_indx] <- beta
+    theta[q_indx] <- q
+
     ## Add in mortality if there is any.
     if(!is.null(mu)){
       mu <- exp(logmu)
-      theta <- c(theta, mu)
+      theta[mu_indx] <- mu
     }
-    ## Add in mortality if there is any.
-    if(!is.null(gamma)){
-      theta <- c(theta, gamma)
-    }
-    
+
     detRate <- emissionrate*q
     logdetRate <- log(detRate)
         
     N <- length(observations)
     ll <- 0
     for( i in 1:N ){
+      if(!is.null(gamma)){
+        if(nrow(gamma) == 1){ theta[gamma_indx] <- drop(gamma[1, 1:2])
+        }else{ theta[gamma_indx] <- drop(gamma[i, 1:2])}
+      }    
       timesi <- observations[[i]]$detections[,"time"]
       obstatei <- observations[[i]]$detections[,"state_id"]
-      v <- numeric(nstates)
+      v <- AD(numeric(nstates))
       v[obstatei[1]] <- 1
       nobsi <- observations[[i]]$ndets  ## Ensure we stop at the end of study:
       theta[1:nstates] <- v
@@ -227,7 +252,7 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
         for(j in 2:nobsi){
           theta[nstates+1] <- (timesi[j]-timesi[j-1])
           pstate <- expAv_forward(theta)
-          v <- numeric(nstates)
+          v <- AD(numeric(nstates))
           v[obstatei[j]] <- 1
           theta[1:nstates] <- v          
           ll <- ll + log(pstate[obstatei[j]]) + logdetRate
@@ -251,7 +276,6 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
     ## Return negative log likelihood:
     -ll
   }
-  
   nll <- RTMB::MakeADFun(func = mmpp_negll,
                          parameters = par,
                          silent=silent)                         
@@ -288,13 +312,20 @@ make_ad_fun_move <- function(self, alpha, beta, gamma = NULL, mu = NULL, control
     logmu <- log(mu)
     par$logmu <- logmu
   }
+  if(is.vector(gamma)){
+    gamma <- matrix(gamma, nrow = 1, ncol = 2)
+  }
   if(!is.null(gamma)) par$gamma <- gamma
   
-  nstates <- self$nstates
-  if(!is.null(mu)){
-    nstates <- nstates + 1
-  }
+  nstates <- self$nstates + !is.null(mu)
   observations <- self$observations
+  
+  ## nstates + time + alpha + beta +  mu + gamma
+  ntheta <- nstates + 1 + 1 + length(beta) + length(mu) + length(gamma[1,])
+  alpha_indx <- nstates + 1 + 1
+  beta_indx <- nstates + 1 + 1 + 1:length(beta)
+  mu_indx <- max(beta_indx) + 1
+  gamma_indx <-  max(beta_indx) + length(mu) + 1:2
 
   m <- nrow(self$statespace)
   xmax <- max(self$designmatrix)
@@ -302,7 +333,9 @@ make_ad_fun_move <- function(self, alpha, beta, gamma = NULL, mu = NULL, control
   ## Build e^(Q-Lambda)*t * v as an atomic.
   control$tranpose <- TRUE
   control$mmpp <- FALSE
-  expAv_forward <- make_expav_atomic(self, alpha = alpha, beta = beta, mu = mu, gamma = gamma, control = control)
+  gamma_check <- NULL
+  if(!is.null(gamma)) gamma_check <- c(0,0)
+  expAv_forward <- make_expav_atomic(self, alpha = alpha, beta = beta, mu = mu, gamma = gamma_check, control = control)
 
   mmpp_negll <- function(par){
     ####### Sometimes necessary to avoid rtmb errors #######
@@ -315,25 +348,26 @@ make_ad_fun_move <- function(self, alpha, beta, gamma = NULL, mu = NULL, control
     nbeta <- length(beta)
 
     ## theta = v, time, pars:
-    v <- numeric(nstates)
-    theta <- c(v, 0, alpha, beta)
-    
+    theta <- AD(numeric(ntheta))
+    theta[alpha_indx] <- alpha
+    theta[beta_indx] <- beta
+
     ## Add in mortality if there is any.
     if(!is.null(mu)){
       mu <- exp(logmu)
-      theta <- c(theta, mu)
-    }
-    ## Add in mortality if there is any.
-    if(!is.null(gamma)){
-      theta <- c(theta, gamma)
+      theta[mu_indx] <- mu
     }
     
     N <- length(observations)
     ll <- 0
     for( i in 1:N ){
+      if(!is.null(gamma)){
+        if(nrow(gamma) == 1){ theta[gamma_indx] <- drop(gamma[1, 1:2])
+        }else{ theta[gamma_indx] <- drop(gamma[i, 1:2])}
+      }    
       timesi <- observations[[i]]$detections[,"time"]
       obstatei <- observations[[i]]$detections[,"state_id"]
-      v <- numeric(nstates)
+      v <- AD(numeric(nstates))
       v[obstatei[1]] <- 1
       nobsi <- observations[[i]]$ndets  ## Ensure we stop at the end of study:
       theta[1:nstates] <- v
@@ -342,7 +376,7 @@ make_ad_fun_move <- function(self, alpha, beta, gamma = NULL, mu = NULL, control
         for(j in 2:nobsi){
           theta[nstates+1] <- (timesi[j]-timesi[j-1])
           pstate <- expAv_forward(theta)
-          v <- numeric(nstates)
+          v <- AD(numeric(nstates))
           v[obstatei[j]] <- 1
           theta[1:nstates] <- v          
           ll <- ll + log(pstate[obstatei[j]])
