@@ -303,6 +303,33 @@ generator_design_gr <- function(self, formula){
   self$itoj <- as.matrix(ij)
 }
 
+#' Extend detector detection states
+#'
+#' @description Extend the maximum distance that even detection exists on a detector for a higher resolution grid.
+#'
+#' @param self R6 Acoustic telemetry object.
+#' @param dist Distance that a detector can observe for changing resolution.
+#'
+#' @export
+extend_detectors <- function(self, dist = NULL){
+  if(is.null(dist))
+    dist <- self$resolution[1]
+
+  detectors_updated <- NULL
+  for( i in 1:nrow(self$detectors) ){
+    dets <- self$detectors[i,]
+    xrange <- seq(dets$x - dist, dets$x + dist, self$resolution[1])
+    yrange <- seq(dets$y - dist, dets$y + dist, self$resolution[2])
+    newtraps <- expand.grid(x = xrange, y = yrange)
+    newtraps$state_id <- calc_states(self, newtraps)
+    newtraps <- rbind(dets[, c("x", "y", "state_id")], newtraps)
+    newtraps <- newtraps |> subset(!is.na(state_id)) |> subset(!duplicated(state_id))
+    detectors_updated <- rbind(detectors_updated, newtraps)
+  }
+  detectors_updated$detector_id <- 1:nrow(detectors_updated)
+  self$detectors <- detectors_updated
+}
+
 #' Extract Default Values
 #'
 #' @param controlValue Any value which includes NULL.

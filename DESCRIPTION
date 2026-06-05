@@ -1,10 +1,13 @@
 Package: acousticMove
 Title: Fit Acoustic Telemetry Data with MMPP
 Version: 0.0.0.9000
-Authors@R (parsed):
+Authors@R (parsed): 
     * Paul van Dam-Batest <paul.vandambates@gmail.com> [aut, cre]
 Description: Fit acoustic telemetry data using Markov modulated Poisson process.
 License: use_mit_license()
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
+Depends: 
+    R (>= 3.5)
+LazyData: true

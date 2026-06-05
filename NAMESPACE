@@ -2,6 +2,7 @@
 
 export(acousticModel)
 export(calc_states)
+export(extend_detectors)
 export(extractControls)
 export(generator_design_gr)
 export(initCheck)

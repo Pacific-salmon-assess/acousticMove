@@ -6,8 +6,8 @@ library(ggplot2)
 
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
 
-files <- paste0("R/", dir("R"))
-invisible(lapply(files, source))
+# files <- paste0("R/", dir("R"))
+# invisible(lapply(files, source))
 
 ## Create a shape file and simulation surface:
 set.seed(125)
@@ -18,15 +18,46 @@ ggplot(data = grid, aes(x=x, y=y)) +
   scale_fill_viridis_c("Habitat") +
   theme_bw()
 
-recs <- expand.grid(x = seq(-0.9, 0.9, 0.2), y = seq(-0.9, 0.9, 0.2))
+seed = sample(10000, 20)
+for( i in 1:20 ){
+set.seed(seed[i])
+grid <- simulate_gmrf(x = seq(0, 1, length = 41), y = seq(0, 1, length = 41), nhabitat = 1, kappa = 1)
+grid$habitat_1 <- scale(grid$habitat_1)
+  p <- ggplot(data = grid, aes(x=x, y=y)) + 
+    geom_tile(aes(fill = habitat_1)) +
+    scale_fill_viridis_c("Habitat") +
+    theme_bw() +
+    ggtitle(paste(seed[i]))
+  dev.new()
+  print(p)
+}
+
+set.seed(7263)
+grid <- simulate_gmrf(x = seq(0, 1, length = 41), y = seq(0, 1, length = 41), nhabitat = 1, kappa = 1)
+names(grid) <- c("x", "y", "habitat")
+xlim <- range(grid$x) + c(1, -1)*0.05*diff(range(grid$x))
+ylim <- range(grid$y) + c(1, -1)*0.05*diff(range(grid$x))
+recs <- expand.grid(x = seq(xlim[1], xlim[2], length = 10), y = seq(ylim[1], ylim[2], length = 10))
 recs$id <- 1:nrow(recs)
+
+## Sim1 Example:
+sim_1 <- list(statespace = grid, detectors = recs)
+usethis::use_data(sim_1)
+
+
+grid$habitat_1 <- scale(grid$habitat_1)
+ggplot(data = grid, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = habitat_1)) +
+  scale_fill_viridis_c("Habitat") +
+  geom_point(data = recs, aes(x = x, y = y), col = 'red', shape = 3, size = 2)
+  theme_bw()
 
 alpha <- 0.15
 beta <- c(0.03, 0.10)
 q <- 0.03
 mu <- NULL
 N <- 10
-gamma <- c(0, 0)
+gamma <- c(0.5, 0.5)
 # gamma <- cbind(runif(N,-1,1), runif(N,-1,1))
 emissionrate <- 720
 studyperiod <- 50
@@ -43,7 +74,10 @@ ggplot(data = grid, aes(x=x, y=y)) +
   geom_point(data = recs, aes(x=x, y=y), shape = 3, col = 'red', size = 3) +
   scale_fill_viridis_c("Habitat") +
   # geom_point(data = data.frame(x=gamma[id,1], y=gamma[id,2]), col = 'red', size = 3, pch = 16) +
-  theme_bw()
+  theme_bw() +
+  geom_point(data = obj$detectors, aes(x = x, y = y), col = 'red', shape = 3, size = 2)
+
+obj$observations
 
 obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod, control=list())
 fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr)
