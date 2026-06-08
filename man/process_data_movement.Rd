@@ -9,13 +9,9 @@ process_data_movement(self, delta_t = 1, absorbing_states = NULL)
 \arguments{
 \item{self}{R6 object containing statespace and receivers.}
 
+\item{delta_t}{Time increment.}
+
 \item{absorbing_states}{Vector of which states are considered absorbing, such as entering a river system (default = NULL).}
-
-\item{detections}{Detection history dataframe that includes x,y coordinates of detectors (default = NULL). Default implies simulated data.}
-
-\item{releases}{Dataframe of where the animals were released (Default NULL).}
-
-\item{known_fates}{Dataframe of where the animals ended up (Default NULL).}
 }
 \description{
 Process Telemetry Data for Modelling

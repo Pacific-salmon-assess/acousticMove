@@ -9,7 +9,7 @@ calc_states(self, locs)
 \arguments{
 \item{self}{R6 object containing statespace and receivers.}
 
-\item{Locs}{Dataframe of locations x,y.}
+\item{locs}{Dataframe of locations x,y.}
 }
 \description{
 Calculate state ID

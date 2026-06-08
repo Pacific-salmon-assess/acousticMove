@@ -27,7 +27,7 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
     detections$state_id <- calc_states(self, locs = detections[, c("x", "y")])
     if(any(is.na(detections$state_id))){
       cat("Removing detections outside of the statespace.\n")
-      detections <- detections |> subset(!is.na(state_id))
+      detections <- detections[!is.na(detections$state_id), , drop = FALSE]
     }
   }
   if(any(is.na(detections$state_id))){
@@ -60,11 +60,11 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
   
   observations <- list()
   for( i in 1:N ){
-    deti <- detections |> subset(animal_id == i)
+    deti <- detections[detections$animal_id == i, , drop = FALSE]
     deti <- deti[order(deti$time),] 
     ## Add release state if it's provided separately:
     if(!is.null(releases)){
-      reli <- releases |> subset(animal_id == i)
+      reli <- releases[releases$animal_id == i, , drop = FALSE]
       reli$state_id <- NA
       deti <- rbind(reli, deti)
     }   
@@ -73,7 +73,7 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
     observations[[i]]$ndets <- nrow(deti)
     ## Add known fates if provided
     if(!is.null(known_fates)){
-      fatei <- known_fates |> subset(animal_id == i)
+      fatei <- known_fates[known_fates$animal_id == i, , drop = FALSE]
       if(nrow(fatei) == 0) observations[[i]]$known_fate  <- NULL
       else observations[[i]]$known_fate <- c("time" = fatei$time,  "state_id" = fatei$state_id)
     }
@@ -84,9 +84,10 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
 #' Process Telemetry Data for Modelling
 #'
 #' @param self R6 object containing statespace and receivers.
-#' @param detections Detection history dataframe that includes x,y coordinates of detectors (default = NULL). Default implies simulated data.
-#' @param releases Dataframe of where the animals were released (Default NULL). 
-#' @param known_fates Dataframe of where the animals ended up (Default NULL).
+#' @param delta_t Time increment.
+# @param detections Detection history dataframe that includes x,y coordinates of detectors (default = NULL). Default implies simulated data.
+# @param releases Dataframe of where the animals were released (Default NULL). 
+# @param known_fates Dataframe of where the animals ended up (Default NULL).
 #' @param absorbing_states Vector of which states are considered absorbing, such as entering a river system (default = NULL).
 #'
 #' @export
@@ -108,7 +109,7 @@ process_data_movement <- function(self, delta_t = 1, absorbing_states = NULL){
     detections$state_id <- calc_states(self, locs = detections[, c("x", "y")])
     if(any(is.na(detections$state_id))){
       cat("Removing detections outside of the statespace.\n")
-      detections <- detections |> subset(!is.na(state_id))
+      detections <- detections[!is.na(detections$state_id), , drop = FALSE]
     }
   }
   if(any(is.na(detections$state_id))){
@@ -124,12 +125,12 @@ process_data_movement <- function(self, delta_t = 1, absorbing_states = NULL){
       
   observations <- list()
   for( i in 1:N ){
-    deti <- detections |> subset(animal_id == i)
+    deti <- detections[detections$animal_id == i, , drop = FALSE]
     deti <- deti[order(deti$time),]
     ## Thin the times to the detection window.
     subset <- deti$time %/% delta_t
     deti <- deti[which(!duplicated(subset)),]
-    deti <- deti |> within(time <- floor(time/delta_t)*delta_t)
+    deti <- within(deti, time <- floor(time/delta_t)*delta_t)
     ## Add release state if it's provided separately:
     observations[[i]] <- list()
     observations[[i]]$detections <- as.matrix(deti[, c("time", "state_id")])
@@ -158,9 +159,9 @@ process_states_detectors <- function(self, statespace, detectors){
   }
 
   ## Find resolution:
-  ydiff <- statespace$y |> diff() |> abs() |> round(7)
+  ydiff <- round(abs(diff(statespace$y)), 7)
   yres <- min(ydiff[ydiff != 0])
-  xdiff <- statespace$x |> diff() |> abs() |> round(7)
+  xdiff <- round(abs(diff(statespace$x)), 7)
   xres <- min(xdiff[xdiff != 0])
   
   ## Add an extra state to allow for indexing out of the statespace for convenience of the +/-.
@@ -203,7 +204,8 @@ process_states_detectors <- function(self, statespace, detectors){
   keep <- which(idxt > 0 & idxt <= max(idx_state) & idyt > 0 & idyt <= max(idy_state))
   if(length(keep) != nrow(detectors)) cat("Warning: Removing detectors that are not contained with the statespace.\n")
 
-  self$detectors <- cbind(detectors[keep,], state_id = mat[cbind(idxt, idyt)[keep,]]) |> subset(!is.na(state_id))
+  self$detectors <- cbind(detectors[keep, ], state_id = mat[cbind(idxt, idyt)[keep, ]])
+  self$detectors <- self$detectors[!is.na(self$detectors$state_id), , drop = FALSE]
   detector_names <- unique(self$detectors$detector_id)
   lookup_detector_id <- as.numeric(factor(detector_names))
   names(lookup_detector_id) <- detector_names
@@ -219,7 +221,7 @@ process_states_detectors <- function(self, statespace, detectors){
 #' Calculate state ID
 #'
 #' @param self R6 object containing statespace and receivers.
-#' @param Locs Dataframe of locations x,y.
+#' @param locs Dataframe of locations x,y.
 #' 
 #' @details Compute which state a location is within.
 #'
@@ -242,8 +244,8 @@ calc_states <- function(self, locs){
 #'
 #' @export
 generator_design_gr <- function(self, formula){
-  vars <- attr(terms.formula(formula), "term.labels")
-  if(attr(terms.formula(formula), "intercept") == 1){
+  vars <- attr(stats::terms.formula(formula), "term.labels")
+  if(attr(stats::terms.formula(formula), "intercept") == 1){
     cat("[Warning] An intercept term is not allowed and is being removed.\n")
     formula <- update(formula, ~ . - 1)
   }
@@ -298,7 +300,7 @@ generator_design_gr <- function(self, formula){
   self$design_ou <- ij[,3:5]
   ij <- ij[,1:2]
   
-  X <- model.matrix(formula, data = DF)
+  X <- stats::model.matrix(formula, data = DF)
   self$designmatrix <- as.matrix(X)
   self$itoj <- as.matrix(ij)
 }
@@ -323,7 +325,8 @@ extend_detectors <- function(self, dist = NULL){
     newtraps <- expand.grid(x = xrange, y = yrange)
     newtraps$state_id <- calc_states(self, newtraps)
     newtraps <- rbind(dets[, c("x", "y", "state_id")], newtraps)
-    newtraps <- newtraps |> subset(!is.na(state_id)) |> subset(!duplicated(state_id))
+    newtraps <- newtraps[!is.na(newtraps$state_id), , drop = FALSE]
+    newtraps <- newtraps[!duplicated(newtraps$state_id), , drop = FALSE]
     detectors_updated <- rbind(detectors_updated, newtraps)
   }
   detectors_updated$detector_id <- 1:nrow(detectors_updated)
@@ -396,11 +399,11 @@ initCheck <- function(self, alpha, beta, gamma = NULL, verbose = FALSE){
 #'
 #' @export
 initValues <- function(self, pars){
-  pars["logalpha"] <- pars["logalpha"] + rnorm(1, 0, 0.2)
-  pars[names(pars) == "beta"] <- pars[names(pars) == "beta"] + rnorm(length(pars[names(pars) == "beta"]), 0, 0.2)
-  pars[names(pars) == "logitq"] <- pars[names(pars) == "logitq"] + rnorm(1, 0, 0.5)
-  pars[names(pars) == "logmu"] <- pars[names(pars) == "logmu"] + rnorm(1, 0, 0.5)
-  pars[names(pars) == "gamma"] <- pars[names(pars) == "gamma"] + rnorm(sum(names(pars) == "gamma"), 0, 3)*self$resolution[1]
+  pars["logalpha"] <- pars["logalpha"] + stats::rnorm(1, 0, 0.2)
+  pars[names(pars) == "beta"] <- pars[names(pars) == "beta"] + stats::rnorm(length(pars[names(pars) == "beta"]), 0, 0.2)
+  pars[names(pars) == "logitq"] <- pars[names(pars) == "logitq"] + stats::rnorm(1, 0, 0.5)
+  pars[names(pars) == "logmu"] <- pars[names(pars) == "logmu"] + stats::rnorm(1, 0, 0.5)
+  pars[names(pars) == "gamma"] <- pars[names(pars) == "gamma"] + stats::rnorm(sum(names(pars) == "gamma"), 0, 3)*self$resolution[1]
   pars_norm <- reList(pars)
   test <- initCheck(self, pars_norm$alpha, pars_norm$beta, drop(pars_norm$gamma[1,]), FALSE)
   if(test <= 0) pars["logalpha"] <- log(sqrt(pars_norm$alpha^2 + abs(test))) + 0.01

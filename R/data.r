@@ -11,11 +11,13 @@
 #' @examples
 #'\dontrun{
 #' set.seed(7263)
-#' grid <- simulate_gmrf(x = seq(0, 1, length = 41), y = seq(0, 1, length = 41), nhabitat = 1, kappa = 1)
+#' grid <- simulate_gmrf(x = seq(0, 1, length = 41), 
+#'   y = seq(0, 1, length = 41), nhabitat = 1, kappa = 1)
 #' names(grid) <- c("x", "y", "habitat")
 #' xlim <- range(grid$x) + c(1, -1)*0.05*diff(range(grid$x))
 #' ylim <- range(grid$y) + c(1, -1)*0.05*diff(range(grid$x))
-#' recs <- expand.grid(x = seq(xlim[1], xlim[2], length = 10), y = seq(ylim[1], ylim[2], length = 10))
+#' recs <- expand.grid(x = seq(xlim[1], xlim[2], length = 10), 
+#'   y = seq(ylim[1], ylim[2], length = 10))
 #' recs$id <- 1:nrow(recs)
 #' ## Sim1 Example:
 #' sim_1 <- list(statespace = grid, detectors = recs)

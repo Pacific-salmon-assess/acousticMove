@@ -1,3 +1,5 @@
 ^acousticMove\.Rproj$
 ^\.Rproj\.user$
 ^buildPackage\.R$
+^\.positai$
+^\.claude$

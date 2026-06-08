@@ -44,7 +44,9 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
   J <- nrow(self$detectors)
 
   ## Quick subset of detectors in states:
-  posdetectors <- lapply(self$statespace$state_id, FUN = function(i){self$detectors |> subset(state_id == i)})
+  posdetectors <- lapply(self$statespace$state_id, FUN = function(i){
+    self$detectors[self$detectors$state_id == i, , drop = FALSE]
+  })
 
   true.movement <- NULL
   observations <- list()
@@ -63,7 +65,7 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
       if(statei[j] %in% self$absorbingstates){ ## Stays here the rest of the time.
         z <- studyperiod + 1
       }else{
-        z <- rexp(1, Qd[statei[j]]) ## Residence time.
+        z <- stats::rexp(1, Qd[statei[j]]) ## Residence time.
       }
       ## Check if stay over the study period.
       zextra <- 0
@@ -72,11 +74,11 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
         z <- z - zextra
       }
       ## Check obs:
-      nobs <- rpois(1, z*haz[statei[j]])
+      nobs <- stats::rpois(1, z*haz[statei[j]])
       if(nobs > 0){
         detz <- posdetectors[[statei[j]]]
         smp <- sample(nrow(detz), nobs, replace = TRUE)
-        obsij <- data.frame(animal_id = i, state_id = statei[j], detector_id = detz[smp, "detector_id"], time = ti + sort(runif(nobs, 0, z)))
+        obsij <- data.frame(animal_id = i, state_id = statei[j], detector_id = detz[smp, "detector_id"], time = ti + sort(stats::runif(nobs, 0, z)))
         obsi <- rbind(obsi, obsij)
       }
       if(statei[j] %in% c(self$absorbingstates, m+1)){
@@ -120,21 +122,21 @@ simulate_gmrf <- function(x, y, nhabitat = 1, kappa = 0.95){
   df <- expand.grid( y = sort(y), x = sort(x) )
   grid <- expand.grid(y = y, x = x)
 
-  Px <- bandSparse(n = nx, k = c(-1,1), diag = list(rep(0.5, nx), rep(0.5, nx)))
-  Ix <- Diagonal( n = nx)
-  Py <- bandSparse(n = ny, k = c(-1,1), diag = list(rep(0.5, ny), rep(0.5, ny)))
-  Iy <- Diagonal( n = ny)
-  I <- Diagonal(n = nx*ny)
+  Px <- Matrix::bandSparse(n = nx, k = c(-1,1), diagonals = list(rep(0.5, nx), rep(0.5, nx)))
+  Ix <- Matrix::Diagonal( n = nx)
+  Py <- Matrix::bandSparse(n = ny, k = c(-1,1), diagonals = list(rep(0.5, ny), rep(0.5, ny)))
+  Iy <- Matrix::Diagonal( n = ny)
+  I <- Matrix::Diagonal(n = nx*ny)
 
   P <- kronecker(Py, Ix) + kronecker(Iy, Px)
-  P <- Diagonal(n = nx*ny, x = 1/rowSums(P) ) %*% P
+  P <- Matrix::Diagonal(n = nx*ny, x = 1/rowSums(P) ) %*% P
 
   if(length(kappa) == 1) kappa <- rep(kappa, nhabitat)
   for(i in 1:nhabitat) {
 
     IminusP <- I - kappa[i] * P
     Q <- t(IminusP) %*% (IminusP)
-    habi <- RTMB:::rgmrf0( n = 1, Q = Q )
+    habi <- RTMB:::rgmrf0( n = 1, Q = Q ) # FIXME: need to avoid ::: for CRAN
     df[[paste0("habitat_", i)]] <- habi
   }
 
