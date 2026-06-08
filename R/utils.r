@@ -406,3 +406,33 @@ initValues <- function(self, pars){
   if(test <= 0) pars["logalpha"] <- log(sqrt(pars_norm$alpha^2 + abs(test))) + 0.01
   return(pars)
 }
+
+
+#' Calculate Limiting Probabilities
+#' 
+#' @param self R6 object containing statespace and receivers.
+#' @param alpha Diffusion rate.
+#' @param beta Advection rates.
+#' @param mu Mortality rate.
+#' @param gamma Centre of attraction.
+#' 
+#' @details Solve for limiting distribution pi, as pi %*% Q = 0, and sum(pi) = 1.
+#' 
+#' @return Vector of limiting probabilities, assuming that a steady state solution exists.
+#' @export
+calcLimit <- function(self, alpha, beta, gamma, mu){
+  Q <- self$calculateQ(alpha, beta, mu, gamma)
+
+  ## Linear Algebra solve: pi*Q = 0 and sum(pi) == 1.
+  A <- rbind(t(Q), rep(1, nrow(Q)))
+  b <- c(numeric(nrow(Q)), 1)
+  prob <- solve(A[-1,], b[-1])
+  return(prob)
+
+  ## Eigen Version: Slower
+  if(FALSE){
+    eP <- eigen(t(Q))
+    prob <- as.numeric(eP$vectors[,which.min(abs(Re(eP$values)))])
+    prob <- prob / sum( prob )
+  }
+}

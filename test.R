@@ -6,6 +6,97 @@ library(ggplot2)
 
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
 
+
+## New Version:
+# remotes::install_github("Pacific-salmon-assess/acousticMove")
+library(acousticMove)
+library(ggplot2)
+data("sim_1")
+
+alpha <- 0.15
+beta <- c(0.03, 0.1)
+q <- 0.03
+mu <- NULL
+gamma <- c(0.5, 0.5)
+emissionrate <- 720
+studyperiod <- 50
+
+obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
+obj$modelSetUp(formula = ~ 0 + habitat)
+obj$simulate(N=15, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
+id <- 1
+ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = habitat)) +
+  geom_path(data = obj$sim_move |> subset(animal_id == id & time > 5), aes(x = x, y = y), col = 'black', linetype = 2) + 
+  geom_point(data = obj$detectors, aes(x=x, y=y), shape = 3, col = 'red', size = 3) +
+  scale_fill_viridis_c("Habitat") +
+  geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y),  col = 'purple', size = 4, shape = 20) +
+  theme_bw()
+
+## Fit a model:
+obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
+fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr)
+reList(fit$par)
+
+Q <- obj$calculateQ(alpha, beta, mu, gamma)
+expQ <- expm::expm(as.matrix(Q)*100)
+ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = diag(expQ))) +
+  theme_bw() + 
+  scale_fill_viridis_c("Utility") +
+  geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y),  col = 'purple', size = 4, shape = 20)
+
+## USE Lapack to get Eigen Decomp for limiting dist.
+
+ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = habitat)) +
+  theme_bw() + 
+  scale_fill_viridis_c("Utility")
+
+M <- expm::expm(Q)
+eigQ <- eigen(t(Q))
+mine <- which.min(abs(Re(eigQ$values)))
+P <- abs(Re(eigQ$vectors[, 1]))
+P <- P/sum(P)
+ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = prob )) +
+  theme_bw() + 
+  scale_fill_viridis_c("Utility")
+
+
+calcLimit <- function(alpha, beta, gamma, mu){
+  Q <- obj$calculateQ(alpha, beta, mu, gamma)
+
+  ## Linear Algebra solve: pi*Q = 0 and sum(pi) == 0.
+  A <- rbind(t(Q), rep(1, nrow(Q)))
+  b <- c(numeric(nrow(Q)), 1)
+  prob <- solve(A[-1,], b[-1])
+  return(prob)
+
+  ## Eigen Version: Slower
+  if(FALSE){
+    eP <- eigen(t(Q))
+    prob <- as.numeric(eP$vectors[,which.min(abs(Re(eP$values)))])
+    prob <- prob / sum( prob )
+  }
+}
+p <- calcLimit(alpha, beta, gamma, NULL)
+contours <- quantile(p, 0.95) 
+xy <- obj$statespace[which(p > contours - 0.001 & p < contours + 0.001),]
+ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+  geom_tile(aes(fill = habitat)) +
+  scale_fill_viridis_c("Habitat") +
+  theme_bw() + 
+  geom_contour(aes(x = x, y = y, z = p, linetype = factor(after_stat(level))), 
+               breaks = quantile(p, c(0.95, 0.8, 0.5)), colour = "black", linewidth = 1) + 
+  coord_fixed() +
+  scale_linetype("Quantile", labels = c("95%", "80%", "50%")) +
+  geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y),  col = 'red', size = 3, shape = 4) +
+  xlab("X") + ylab()
+
+
+
+
 # files <- paste0("R/", dir("R"))
 # invisible(lapply(files, source))
 

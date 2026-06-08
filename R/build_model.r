@@ -171,8 +171,8 @@ acousticModel <- R6::R6Class("acousticModel",
     simFit = function(N, alpha, beta, q, gamma = NULL, emissionrate = 720, studyperiod, mu = NULL, absorbingstates = NULL, startbbox = NULL, formula = NULL, control = list()){
       self$simulate(N, alpha, beta, q, gamma, formula, emissionrate, studyperiod, absorbingstates, startbbox, mu)
       self$makeADFun(alpha = alpha, beta = beta, q = q, mu, gamma, control = control)
-      pars <- initValues(self, self$negll$par)
-      fit <- nlminb(pars, self$nll$fn, self$nll$gr)
+      pars <- initValues(self, self$negll$par)  
+      fit <- nlminb(pars, self$nll$fn, self$nll$gr) ## suppressWarnings(
       self$estimated_pars <- reList(pars = fit$par)
       return(fit)
     },
@@ -195,7 +195,7 @@ acousticModel <- R6::R6Class("acousticModel",
       process_data_movement(self, delta_t)
       make_ad_fun_move(self, alpha, beta, gamma, mu, control)
       pars <- initValues(self, self$negll$par)
-      fit <- nlminb(pars, self$nll$fn, self$nll$gr)
+      fit <- nlminb(pars, self$nll$fn, self$nll$gr) #suppressWarnings(
       self$estimated_pars <- reList(pars = fit$par)
       return(fit)
     }
