@@ -50,7 +50,7 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
   observations <- list()
   for( i in 1:N ){
     Q <- make_generator(alpha = alpha, beta = beta, mu = mu, gamma = gamma[i,], nstates = nstates, dx = self$resolution[1], 
-                        self$absorbingstates, self$itoj, self$designmatrix, sefl$designou)
+                        self$absorbingstates, self$itoj, self$designmatrix, self$designou)
     Qd <- -diag(Q)  ## Exit rate:
     if(any(Qd < 0)) stop("Negative exit rate (positive diagonal) for some state in the generator Q.")
     
