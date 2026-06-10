@@ -23,7 +23,7 @@ make_generator <- function(alpha, beta, mu = NULL, gamma = NULL, nstates, dx, ab
     Q <- AD(Matrix(0, nrow = nstates, ncol = nstates))
     xbeta <- designmatrix %*% beta[1:ndesign]
     if(!is.null(gamma)){
-      xbeta <- xbeta + beta[ndesign+1]*design_ou[,1]*(gamma[self$design_ou[,2]] - design_ou[,3])
+      xbeta <- xbeta + beta[ndesign+1]*design_ou[,1]*(gamma[design_ou[,2]] - design_ou[,3])
     }
 
     dx2 <- dx*dx

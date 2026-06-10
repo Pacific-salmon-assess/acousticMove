@@ -42,7 +42,8 @@ plot(ev2, ev3[,1])
 eQ <- Matrix::expm(Q*10)
 ev3 <- t(eQ) %*% v
 
-
+obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
+obj$modelSetUp(formula = ~ 0 + habitat)
 obj$simulate(N=15, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
 id <- 1
 ggplot(data = obj$statespace, aes(x=x, y=y)) + 
