@@ -55,13 +55,13 @@ plot_limit <- function(self, alpha, beta, gamma, mu, layer, label, quantiles = N
 #' 
 #' @return Vector of limiting probabilities, assuming that a steady state solution exists.
 #' @export
-plot_path <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, alpha, beta, gamma, mu, layer, label){
+plot_path <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, alpha, beta, gamma, mu, expected = TRUE){
   if(is.null(s_init)){
     s_init <- numeric(self$nstates)
     s_init[sample(self$nstates, 1)] <- 1
   }
   Q <- self$calculateQ(alpha, beta, mu, gamma)
-  Pt <- expm::expm(Q*deltat)
+  Pt <- Matrix::expm(Q*deltat)
   tx <- seq(tstart, tend, deltat)
   psum <- numeric(nrow(Q))
   pnew <- s_init
@@ -69,20 +69,23 @@ plot_path <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, a
     pnew <- pnew %*% Pt
     psum <- psum + pnew*deltat
   }
-  plot_1 <- ggplot(data = obj$statespace, aes(x=x, y=y)) + 
-    geom_tile(aes(fill = drop(psum))) +
-    scale_fill_viridis_c("Expected Time") +
-    theme_bw() + 
-    coord_fixed() +
-    xlab("X") + ylab("Y")
-  if(!is.null(gamma))  plot_1 <- plot_1 + geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y), col = 'red', size = 1, shape = 4, stroke = 2)
-  invisible(print(plot_1))
-  # plot_1 <- ggplot(data = obj$statespace, aes(x=x, y=y)) + 
-    # geom_tile(aes(fill = drop(pnew))) +
-    # scale_fill_viridis_c(paste0("State Probability at time ", tend - tstart)) +
-    # theme_bw() + 
-    # coord_fixed() +
-    # xlab("X") + ylab("Y")
-  # if(!is.null(gamma))  plot_1 <- plot_1 + geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y), col = 'red', size = 1, shape = 4, stroke = 2)
-  # invisible(print(plot_1))
+  if(expected){
+    plot_1 <- ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+      geom_tile(aes(fill = as.numeric(psum))) +
+      scale_fill_viridis_c("Expected Time") +
+      theme_bw() + 
+      coord_fixed() +
+      xlab("X") + ylab("Y")
+    if(!is.null(gamma))  plot_1 <- plot_1 + geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y), col = 'red', size = 1, shape = 4, stroke = 2)
+    invisible(print(plot_1))
+  }else{
+    plot_1 <- ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+      geom_tile(aes(fill = as.numeric(pnew))) +
+      scale_fill_viridis_c(paste0("State Probability at time ", tend - tstart)) +
+      theme_bw() + 
+      coord_fixed() +
+      xlab("X") + ylab("Y")
+    if(!is.null(gamma))  plot_1 <- plot_1 + geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y), col = 'red', size = 1, shape = 4, stroke = 2)
+    invisible(print(plot_1))
+  }
 }

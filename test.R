@@ -6,11 +6,14 @@ library(ggplot2)
 
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
 
+sourceCpp("src/expAv.cpp")
 
 ## New Version:
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
 library(acousticMove)
 library(ggplot2)
+library(Rcpp)
+library(RcppArmadillo)
 data("sim_1")
 
 alpha <- 0.15
@@ -23,6 +26,23 @@ studyperiod <- 50
 
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
+Q <- obj$calculateQ(alpha, beta, mu, gamma)
+v <- numeric(obj$nstates)
+v[obj$detectors$state_id[1]] <- 1
+ev <- expAv_cpp(Q*10, v, 1e-8, 5, FALSE)
+evR <- expAv(Q*10, v)
+plot(ev, evR)
+
+ev2 <- expAv_cpp(Q*10, v, 1e-8, 5, TRUE)
+evR2 <- expAv(t(Q)*10, v, control = list(tranpose = TRUE, rescale_freq = 5))
+plot(ev2 - evR2)
+plot(evR2, ev3[,1])
+plot(ev2, ev3[,1])
+
+eQ <- Matrix::expm(Q*10)
+ev3 <- t(eQ) %*% v
+
+
 obj$simulate(N=15, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
 id <- 1
 ggplot(data = obj$statespace, aes(x=x, y=y)) + 
@@ -33,8 +53,15 @@ ggplot(data = obj$statespace, aes(x=x, y=y)) +
   geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y),  col = 'purple', size = 4, shape = 20) +
   theme_bw()
 
+plot_limit(obj, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, "habitat", "Habitat")
+v <- numeric(obj$nstates)
+v[obj$statespace$x == 0.5 & obj$statespace$y == 0.5] <- 1
+plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, expected = TRUE)
+plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, expected = FALSE)
+
 ## Fit a model:
 obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
+obj$negll$gr(obj$negll$par)
 fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr)
 reList(fit$par)
 
