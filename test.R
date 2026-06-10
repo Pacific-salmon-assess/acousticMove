@@ -29,7 +29,7 @@ obj$modelSetUp(formula = ~ 0 + habitat)
 Q <- obj$calculateQ(alpha, beta, mu, gamma)
 v <- numeric(obj$nstates)
 v[obj$detectors$state_id[1]] <- 1
-ev <- expAv_cpp(Q*10, v, 1e-8, 5, FALSE)
+ev <- acousticMove:::expAv_cpp(Q*10, v, 1e-8, 5, FALSE)
 evR <- RTMB::expAv(Q*10, v)
 plot(ev, evR)
 
