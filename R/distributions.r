@@ -86,7 +86,8 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
   itoj <- self$itoj
   designmatrix <- self$designmatrix
   design_ou <- self$design_ou
-
+  emissionrate <- self$emissionrate
+  
   expAv_atomic <- function(theta){
     ####### Sometimes necessary to avoid rtmb errors #######
     # "[<-" <- RTMB::ADoverload("[<-")
@@ -125,7 +126,7 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
     
     ## Remove Detection rate from generator if MMPP.
     if(mmpp){
-      detRate <- self$emissionrate*q
+      detRate <- emissionrate*q
       for(i in seq_along(self$detectors$state_id)) Q[self$detectors$state_id[i], self$detectors$state_id[i]] <- Q[self$detectors$state_id[i], self$detectors$state_id[i]] - detRate
     }
     
@@ -170,7 +171,8 @@ make_expav_atomic_approx <- function(self, n = 1, delta = 0.1, alpha, beta, q, m
   itoj <- self$itoj
   designmatrix <- self$designmatrix
   design_ou <- self$design_ou
-
+  emissionrate <- self$emissionrate
+  
   expAv_atomic <- function(theta){
     ####### Sometimes necessary to avoid rtmb errors #######
     # "[<-" <- RTMB::ADoverload("[<-")
@@ -208,7 +210,7 @@ make_expav_atomic_approx <- function(self, n = 1, delta = 0.1, alpha, beta, q, m
     Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_x, absorbingstates, itoj, designmatrix, design_ou)
     
     ## Remove Detection rate from generator if MMPP.
-    detRate <- self$emissionrate*q
+    detRate <- emissionrate*q
 
     pstate <- v
     for( i in 1:n ){
