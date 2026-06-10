@@ -11,8 +11,10 @@ Depends:
     R (>= 3.5)
 LazyData: true
 Imports:
+   assertthat,
    Matrix,
    R6,
-   TMB,
    RTMB
+Suggests:
+   ggplot2
 Config/roxygen2/version: 8.0.0
