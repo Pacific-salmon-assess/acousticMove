@@ -144,7 +144,7 @@ acousticModel <- R6::R6Class("acousticModel",
     calculateQ = function(alpha, beta, mu = NULL, gamma = NULL){
       nstates <- self$nstates + !is.null(mu)
       Q <- make_generator(alpha = alpha, beta = beta, mu = mu, gamma = gamma, nstates = nstates, dx = self$resolution[1], 
-                          self$absorbingstates, self$itoj, self$designmatrix, sefl$designou)
+                          self$absorbingstates, self$itoj, self$designmatrix, self$designou)
     },
     #' @description Process either data from real observations or from the simulation.
     #' @param detections Dataframe for when and where each animal detection occurs.
