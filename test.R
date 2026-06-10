@@ -6,7 +6,7 @@ library(ggplot2)
 
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
 
-sourceCpp("src/expAv.cpp")
+# sourceCpp("src/expAv.cpp")
 
 ## New Version:
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
@@ -30,7 +30,7 @@ Q <- obj$calculateQ(alpha, beta, mu, gamma)
 v <- numeric(obj$nstates)
 v[obj$detectors$state_id[1]] <- 1
 ev <- expAv_cpp(Q*10, v, 1e-8, 5, FALSE)
-evR <- expAv(Q*10, v)
+evR <- RTMB::expAv(Q*10, v)
 plot(ev, evR)
 
 ev2 <- expAv_cpp(Q*10, v, 1e-8, 5, TRUE)

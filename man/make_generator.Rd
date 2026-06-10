@@ -4,11 +4,20 @@
 \alias{make_generator}
 \title{Make CTMC Generator}
 \usage{
-make_generator(self, alpha, beta, mu = NULL, gamma = NULL, nstates, dx)
+make_generator(
+  alpha,
+  beta,
+  mu = NULL,
+  gamma = NULL,
+  nstates,
+  dx,
+  absorbingstates,
+  itoj,
+  designmatrix,
+  design_ou
+)
 }
 \arguments{
-\item{self}{R6 object containing statespace and receivers.}
-
 \item{alpha}{Diffusion parameter}
 
 \item{beta}{Advection parameters, final value relates to OU process if gamma values provided.}
@@ -20,6 +29,8 @@ make_generator(self, alpha, beta, mu = NULL, gamma = NULL, nstates, dx)
 \item{nstates}{Number of states in CTMC.}
 
 \item{dx}{Grid cell width in each state.}
+
+\item{self}{R6 object containing statespace and receivers.}
 }
 \value{
 Generator Matrix.

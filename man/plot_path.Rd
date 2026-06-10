@@ -14,8 +14,7 @@ plot_path(
   beta,
   gamma,
   mu,
-  layer,
-  label
+  expected = TRUE
 )
 }
 \arguments{
