@@ -351,12 +351,11 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
 
   ## Build e^(t(Q)-Lambda)*t * v as an atomic.
   control$tranpose <- TRUE
-  control$mmpp <- TRUE  
+  control$mmpp <- TRUE
   gamma_check <- NULL
   if(!is.null(gamma)) gamma_check <- c(0,0)
   calc_Q <- make_Q_rtmb(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma_check, control = control) 
   theta <- as.numeric(do.call("c", par))
-  Q <- calc_Q(theta)
   Q_gr <- calc_Q$jacfun()
 
   x <- do.call("c", par)

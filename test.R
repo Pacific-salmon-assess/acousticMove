@@ -4,8 +4,6 @@ library(Matrix)
 library(ggplot2)
 library(acousticMove)
 
-# remotes::install_github("Pacific-salmon-assess/acousticMove")
-
 ## New Version:
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
 library(acousticMove)
@@ -43,22 +41,14 @@ plot_limit(obj, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, "habitat",
 v <- numeric(obj$nstates)
 v[obj$statespace$x == 0.5 & obj$statespace$y == 0.5] <- 1
 
-ev <- expAv(Q*5, v, transpose = FALSE)
-evt <- expAv(Q*5, v, transpose = TRUE)
-plot(ev, evt)
-
-evc <- expAv_cpp(Q*3, v, tol = 1e-8, renorm_freq = 25, trans = FALSE)
-evc2 <- expAv_cpp(Q*3, v, tol = 1e-8, renorm_freq = 25, trans = TRUE)
-plot(evc[,1], evc2)
-
-
 plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, expected = TRUE)
 plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, expected = FALSE)
 
 ## Fit a model:
 obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
 
-fit <- obj$fitModel(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
+fit <- obj$fitModel(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod, control = list(trace = 1))
+
 
 tictoc::tic()
 obj$negll$fn(obj$negll$par)

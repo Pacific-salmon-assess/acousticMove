@@ -220,7 +220,7 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
       detRate <- emissionrate*q
       for(i in seq_along(detectors$state_id)) Q[detectors$state_id[i], detectors$state_id[i]] <- Q[detectors$state_id[i], detectors$state_id[i]] - detRate
     }
-    if(transpose) Q <- t(Q)
+    if(transpose) Q <- Matrix::t(Q)
     return(Q)
   }
   F <- MakeTape(expAv_atomic, theta)
