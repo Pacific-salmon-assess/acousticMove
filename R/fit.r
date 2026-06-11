@@ -61,7 +61,7 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
     forwardprob <- matrix(0, nrow = nstates, ncol = nsteps)
     forwardprob[obstatek[1],1] <- 1
 
-    theta[indx_gamma] <- gamma[i,1:2]
+    if(!is.null(gamma)) theta[indx_gamma] <- gamma[k,1:2]
 
     ## Forward algorithm for MMPP.
     for(i in 2:nsteps ){
@@ -132,6 +132,7 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
       theta[nstates+1] <- (t1-t0)
       path[nsteps-i] <- which.max(expAv_atomic(theta))
     }
+
     forward_all[k,,] <- forwardprob
     reverse_all[k,,] <- backwardprob
     path_all <- rbind(path_all, cbind(data.frame(self$statespace[path,c("x", "y", "state_id")]), time = tsteps, animal_id = k))
