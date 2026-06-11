@@ -212,6 +212,9 @@ acousticModel <- R6::R6Class("acousticModel",
     #' @param control List of object controls which include tolerance, rescale_freq, Nmax, uniformization, trace that controls the RTMB function \code{expAv}.
     #' @details Run simulation and then fit using `nlminb`.    
     fitModel = function(alpha, beta, q, gamma = NULL, emissionrate = 720, studyperiod, mu = NULL, control = list()){
+      self$emissionrate <- emissionrate
+      self$studyperiod <- studyperiod
+
       fit <- fit_negll(self, alpha, beta, q, gamma, mu, control = control)
       return(fit)
     }

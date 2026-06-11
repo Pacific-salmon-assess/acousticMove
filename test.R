@@ -10,6 +10,7 @@ library(acousticMove)
 library(ggplot2)
 library(Rcpp)
 library(RcppArmadillo)
+library(RTMB)
 data("sim_1")
 # sourceCpp("src/expAv.cpp")
 
@@ -27,7 +28,7 @@ Q <- obj$calculateQ(alpha, beta, mu, gamma)
 
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
-obj$simulate(N=15, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
+obj$simulate(N=10, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
 id <- 1
 ggplot(data = obj$statespace, aes(x=x, y=y)) + 
   geom_tile(aes(fill = habitat)) +
@@ -46,13 +47,22 @@ plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, 
 
 ## Fit a model:
 obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
+obj$negll$fn(obj$negll$par)
 
-fit <- obj$fitModel(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod, control = list(trace = 1))
+tictoc::tic()
+fit <- fit_negll(obj, alpha, beta, q, gamma = gamma, mu = mu, control = list(trace = 1))
+tictoc::toc()
+## 371.17 seconds
 
+tictoc::tic()
+start <- initValues(obj, obj$negll$par)
+fit2 <- nlminb(start, obj$negll$fn, obj$negll$gr, control = list(trace = 1))
+tictoc::toc()
 
 tictoc::tic()
 obj$negll$fn(obj$negll$par)
 obj$negll$gr(obj$negll$par)
+tictoc::tic()
 
 tictoc::tic()
 negll_gr(x)

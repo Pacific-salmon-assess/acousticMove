@@ -163,10 +163,11 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
 
   nstates <- self$nstates + includemortality
 
-  theta <- c(log(alpha), beta)
-  if(mmpp) theta <- c(theta, log(q/(1-q)))
-  if(includemortality) theta <- c(theta, log(mu))
-  if(ouprocess) theta <- c(theta, gamma)
+  theta <- c("logalpha" = log(alpha), "beta" = beta)
+  if(mmpp) theta <- c(theta, "logitq" = log(q/(1-q)))
+  if(includemortality) theta <- c(theta, "logmu" = log(mu))
+  if(ouprocess) theta <- c(theta, "gamma" = gamma)
+  names(theta) <- gsub("[0-9]", "", names(theta))
   
   delta_x <- self$resolution[1]
   if(self$resolution[1] != self$resolution[2]) stop("Currently must assume that delta_x = delta_y (square grid).")
@@ -190,24 +191,18 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
     # "c" <- RTMB::ADoverload("c")
   
     ## Process theta vector: 'v, tdiff, alpha, beta, q, mu'
-    iter <- 1
-    alpha <- exp(theta[iter:(iter + nalpha - 1)])
-    iter <- iter + nalpha
-    beta <- theta[iter:(iter + nbeta - 1)]
-    iter <- iter + nbeta
+    alpha <- exp(theta[grep("logalpha", names(theta))])
+    beta <- theta[grep("beta", names(theta))]
     if(mmpp){
-      q <- 1/(1+exp(-theta[iter]))
-      iter <- iter + 1
+      q <- 1/(1+exp(-theta[grep("logitq", names(theta))]))
     }
     if(includemortality){
-      mu <- exp(theta[iter])
-      iter <- iter + 1
+      mu <- exp(theta[grep("logmu", names(theta))])
     }else{
       mu <- NULL
     }
     if(ouprocess){
-      gamma <- theta[iter:(iter+1)]
-      iter <- iter + 2
+      gamma <- theta[grep("gamma", names(theta))]
     }else{
       gamma <- NULL
     }

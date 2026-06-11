@@ -309,20 +309,20 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   if(missing(alpha)){
     logalpha <- 0
   }else{ 
-    logalpha <- log(alpha)
+    logalpha <- log(unname(alpha))
   }
   par$logalpha <- logalpha
   if(missing(beta)) beta <- rep(0, nbeta)
-  par$beta <- beta
+  par$beta <- unname(beta)
   if(missing(q)){
     logitq <- 0
   }else{ 
     logitq <- log(q/(1-q))
   }
-  par$logitq <- logitq
+  par$logitq <- unname(logitq)
   if(!is.null(mu)){
     logmu <- log(mu)
-    par$logmu <- logmu
+    par$logmu <- unname(logmu)
   }
   
   N <- length(self$observations)
@@ -330,18 +330,10 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   if(is.vector(gamma)){
     gamma <- matrix(gamma, nrow = 1, ncol = 2)
   }
-  if(!is.null(gamma)) par$gamma <- gamma
+  if(!is.null(gamma)) par$gamma <- unname(gamma)
   
   nstates <- self$nstates + !is.null(mu)
   observations <- self$observations
-
-  ## nstates + time + alpha + beta + q + mu + gamma
-  ntheta <- 1 + length(beta) + 1 + length(mu) + length(gamma[1,])
-  alpha_indx <- 1
-  beta_indx <- 1 + 1:length(beta)
-  q_indx <- max(beta_indx) + 1
-  mu_indx <- max(q_indx) + 1
-  gamma_indx <-  max(q_indx) + length(mu) + 1:2
 
   m <- nrow(self$statespace)
   xmax <- max(self$designmatrix)
@@ -364,12 +356,13 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   cached_env$pars <-  NULL
   cached_env$negll <-  NULL
 
-  log_det_fn <- MakeTape(\(x){log(emissionrate * plogis(x[q_indx]))}, x)
+  log_det_fn <- MakeTape(\(x){log(emissionrate * plogis(x[grep("logitq", names(x))]))}, x)
   log_det_gr <- log_det_fn$jacfun()
 
   negll_gr <- function(x){
     Q <- calc_Q(x)
-    Qgr <- Q_gr(x)
+    if(any(min(Q - diag(diag(Q))) < 0)) return(NaN) ## Not valid pars.
+    Qgr <- Q_gr(x)    
     
     logdetrate <- log_det_fn(x)
     gr_logdetrate <- log_det_gr(x)
@@ -386,7 +379,7 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
       nobsi <- observations[[i]]$ndets  ## Ensure we stop at the end of study:
       if(nobsi > 1){
         for(j in 2:nobsi){
-          p_gr <- expAv_gr_cpp(Q*(timesi[j]-timesi[j-1]), Qgr*(timesi[j]-timesi[j-1]), v, tol, rescale_freq, Q@i, Q@p)
+          p_gr <- acousticMove:::expAv_gr_cpp(Q*(timesi[j]-timesi[j-1]), Qgr*(timesi[j]-timesi[j-1]), v, tol, rescale_freq, Q@i, Q@p)
           v <- numeric(nstates)
           v[obstatei[j]] <- 1
           ll <- ll + log(p_gr[["ans"]][obstatei[j]]) + logdetrate
@@ -396,13 +389,13 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
       ## If known state of the animal then include it here:
       if(!is.null(observations[[i]]$known_fate)){
         deltat <- observations[[i]]$known_fate["time"]-timesi[nobsi]
-        p_gr <- expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
+        p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
         ll <- ll + log(p_gr[["ans"]][observations[[i]]$known_fate["state_id"]])
         gr <- gr + p_gr[["gr_ans"]][obstatei[j],]/p_gr[["ans"]][[observations[[i]]$known_fate["state_id"]]] 
       }else{
         ## Right censoring
         deltat <- studyperiod - timesi[nobsi]      
-        p_gr <- expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
+        p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
         logpstate <- log(p_gr[["ans"]])
         maxlp <- max(logpstate)
         log_p_marg <- log(sum(exp(logpstate - maxlp))) + maxlp
@@ -417,10 +410,15 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
     if(!is.nan(nll)){
       assign("pars", x, envir = cached_env)
       assign("negll", nll, envir = cached_env) 
+    }else{
+      assign("pars_NaN", x, envir = cached_env) 
     }
     return(-ll)
   }
+  x <- do.call('c', par)
   x <- initValues(self, x)
+  ## Make sure beta is not negative for OU process... Best to confirm that should be true.
+  if(!is.null(gamma) & x[grep("beta", names(x))][length(beta)] < 0) x[grep("beta", names(x))][length(beta)] <- 0.0001
   fit <- nlminb(x, negll_gr, \(x){cached_env$grad}, control = list(trace = trace))
   self$estimated_pars <- reList(fit$par)
   return(fit)
