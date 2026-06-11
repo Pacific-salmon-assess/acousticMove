@@ -138,7 +138,21 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
   return(expAv_forward)
 }
 
-
+#' Make Observed Generator Matrix in AD for gradients
+#'
+#' @param self R6 object containing statespace and receivers.
+#' @param alpha Diffusion parameter
+#' @param beta Advection parameters, final value relates to OU process if gamma values provided.
+#' @param q Detection rate within a state.
+#' @param mu Mortality rate per unit time (default = NULL).
+#' @param gamma Two values relating to the point of attraction in space (default = NULL).
+#' @param control List of values to input in the `expAv` function (default = list()).
+#' 
+#' @details Builds the atomic function to compute the generator matrix in MMPP.
+#'
+#' @return Taped functin of Q for a input of parameters.
+#'
+#' @export
 make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control = list()){
 
   mmpp <- extractControls(control$mmpp, TRUE)

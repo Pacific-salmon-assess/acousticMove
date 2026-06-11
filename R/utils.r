@@ -396,11 +396,12 @@ initCheck <- function(self, alpha, beta, gamma = NULL, verbose = FALSE){
 #'
 #' @export
 initValues <- function(self, pars){
+  names(pars) <- gsub("[0-9]", "", names(pars))
   pars["logalpha"] <- pars["logalpha"] + rnorm(1, 0, 0.2)
-  pars[names(pars) == "beta"] <- pars[names(pars) == "beta"] + rnorm(length(pars[names(pars) == "beta"]), 0, 0.2)
+  pars[grep("beta", names(pars))] <- pars[grep("beta", names(pars))] + rnorm(sum(grepl("beta", names(pars))), 0, 0.2)
   pars[names(pars) == "logitq"] <- pars[names(pars) == "logitq"] + rnorm(1, 0, 0.5)
   pars[names(pars) == "logmu"] <- pars[names(pars) == "logmu"] + rnorm(1, 0, 0.5)
-  pars[names(pars) == "gamma"] <- pars[names(pars) == "gamma"] + rnorm(sum(names(pars) == "gamma"), 0, 3)*self$resolution[1]
+  pars[grep("gamma", names(pars))] <- pars[grep("gamma", names(pars))] + rnorm(sum(grepl("gamma", names(pars))), 0, 3)*self$resolution[1]
   pars_norm <- reList(pars)
   test <- initCheck(self, pars_norm$alpha, pars_norm$beta, drop(pars_norm$gamma[1,]), FALSE)
   if(test <= 0) pars["logalpha"] <- log(sqrt(pars_norm$alpha^2 + abs(test))) + 0.01

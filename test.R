@@ -13,7 +13,7 @@ library(ggplot2)
 library(Rcpp)
 library(RcppArmadillo)
 data("sim_1")
-sourceCpp("src/expAv.cpp")
+# sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.1)
@@ -57,6 +57,8 @@ plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, 
 
 ## Fit a model:
 obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
+
+fit <- obj$fitModel(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
 
 tictoc::tic()
 obj$negll$fn(obj$negll$par)
