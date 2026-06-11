@@ -282,6 +282,151 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
   self$negll <- nll
 }
 
+#' Fit Acoustic Model with joint loglikelihood and gradient evaluation
+#'
+#' @param self R6 object containing statespace and receivers.
+#' @param alpha Diffusion parameter
+#' @param beta Advection parameters, final value relates to OU process if gamma values provided.
+#' @param q Detection rate within a state.
+#' @param gamma Two values relating to the point of attraction in space (default = NULL).
+#' @param mu Mortality rate per unit time (default = NULL).
+#' @param control List of control values (default = list()).
+#' 
+#' @details Compute the negative log likelihood for the Markov modulated Poisson process and fit it using `nlminb`.
+#' @return nlminb fitted object.
+#'
+#' @export
+fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = list()){
+
+  silent <- extractControls(control$silent, TRUE)
+  trace <- extractControls(control$trace, 0)
+  rescale_freq <- extractControls(control$rescale_freq, 25)
+  tol <- extractControls(control$tolerance, 1e-8)
+
+  nbeta <- ncol(self$designmatrix)
+  
+  par <- list()
+  if(missing(alpha)){
+    logalpha <- 0
+  }else{ 
+    logalpha <- log(alpha)
+  }
+  par$logalpha <- logalpha
+  if(missing(beta)) beta <- rep(0, nbeta)
+  par$beta <- beta
+  if(missing(q)){
+    logitq <- 0
+  }else{ 
+    logitq <- log(q/(1-q))
+  }
+  par$logitq <- logitq
+  if(!is.null(mu)){
+    logmu <- log(mu)
+    par$logmu <- logmu
+  }
+  
+  N <- length(self$observations)
+
+  if(is.vector(gamma)){
+    gamma <- matrix(gamma, nrow = 1, ncol = 2)
+  }
+  if(!is.null(gamma)) par$gamma <- gamma
+  
+  nstates <- self$nstates + !is.null(mu)
+  observations <- self$observations
+
+  ## nstates + time + alpha + beta + q + mu + gamma
+  ntheta <- 1 + length(beta) + 1 + length(mu) + length(gamma[1,])
+  alpha_indx <- 1
+  beta_indx <- 1 + 1:length(beta)
+  q_indx <- max(beta_indx) + 1
+  mu_indx <- max(q_indx) + 1
+  gamma_indx <-  max(q_indx) + length(mu) + 1:2
+
+  m <- nrow(self$statespace)
+  xmax <- max(self$designmatrix)
+
+  emissionrate <- as.numeric(self$emissionrate)
+  studyperiod <- as.numeric(self$studyperiod)
+
+  ## Build e^(t(Q)-Lambda)*t * v as an atomic.
+  control$tranpose <- TRUE
+  control$mmpp <- TRUE  
+  gamma_check <- NULL
+  if(!is.null(gamma)) gamma_check <- c(0,0)
+  calc_Q <- make_Q_rtmb(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma_check, control = control) 
+  theta <- as.numeric(do.call("c", par))
+  Q <- calc_Q(theta)
+  Q_gr <- calc_Q$jacfun()
+
+  x <- do.call("c", par)
+  cached_env <- new.env()
+  cached_env$grad <- rep(Inf, length(x))
+  cached_env$pars <-  NULL
+  cached_env$negll <-  NULL
+
+  log_det_fn <- MakeTape(\(x){log(emissionrate * plogis(x[q_indx]))}, x)
+  log_det_gr <- log_det_fn$jacfun()
+
+  negll_gr <- function(x){
+    Q <- calc_Q(x)
+    Qgr <- Q_gr(x)
+    
+    logdetrate <- log_det_fn(x)
+    gr_logdetrate <- log_det_gr(x)
+
+    N <- length(observations)
+    ll <- 0
+    gr <- numeric(length(x))
+
+    for( i in 1:N ){
+      timesi <- observations[[i]]$detections[,"time"]
+      obstatei <- observations[[i]]$detections[,"state_id"]
+      v <- numeric(nstates)
+      v[obstatei[1]] <- 1
+      nobsi <- observations[[i]]$ndets  ## Ensure we stop at the end of study:
+      if(nobsi > 1){
+        for(j in 2:nobsi){
+          p_gr <- expAv_gr_cpp(Q*(timesi[j]-timesi[j-1]), Qgr*(timesi[j]-timesi[j-1]), v, tol, rescale_freq, Q@i, Q@p)
+          v <- numeric(nstates)
+          v[obstatei[j]] <- 1
+          ll <- ll + log(p_gr[["ans"]][obstatei[j]]) + logdetrate
+          gr <- gr + p_gr[["gr_ans"]][obstatei[j],]/p_gr[["ans"]][obstatei[j]] + gr_logdetrate
+        }
+      }
+      ## If known state of the animal then include it here:
+      if(!is.null(observations[[i]]$known_fate)){
+        deltat <- observations[[i]]$known_fate["time"]-timesi[nobsi]
+        p_gr <- expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
+        ll <- ll + log(p_gr[["ans"]][observations[[i]]$known_fate["state_id"]])
+        gr <- gr + p_gr[["gr_ans"]][obstatei[j],]/p_gr[["ans"]][[observations[[i]]$known_fate["state_id"]]] 
+      }else{
+        ## Right censoring
+        deltat <- studyperiod - timesi[nobsi]      
+        p_gr <- expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
+        logpstate <- log(p_gr[["ans"]])
+        maxlp <- max(logpstate)
+        log_p_marg <- log(sum(exp(logpstate - maxlp))) + maxlp
+        ll <- ll + log_p_marg
+        gr <- gr + colSums(p_gr[["gr_ans"]])/exp(log_p_marg)
+      }
+    }
+    nll <- -ll
+
+    ## Return negative log likelihood:
+    assign("grad", -gr, envir = cached_env)
+    if(!is.nan(nll)){
+      assign("pars", x, envir = cached_env)
+      assign("negll", nll, envir = cached_env) 
+    }
+    return(-ll)
+  }
+  x <- initValues(self, x)
+  fit <- nlminb(x, negll_gr, \(x){cached_env$grad}, control = list(trace = trace))
+  self$estimated_pars <- reList(fit$par)
+  return(fit)
+}
+
 #' Build Likelihood for CTMC animal movement.
 #'
 #' @param self R6 object containing statespace and receivers.

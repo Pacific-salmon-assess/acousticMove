@@ -173,7 +173,8 @@ acousticModel <- R6::R6Class("acousticModel",
       self$simulate(N, alpha, beta, q, gamma, formula, emissionrate, studyperiod, absorbingstates, startbbox, mu)
       self$makeADFun(alpha = alpha, beta = beta, q = q, mu, gamma, control = control)
       pars <- initValues(self, self$negll$par)  
-      fit <- nlminb(pars, self$nll$fn, self$nll$gr) ## suppressWarnings(
+      trace <- extractControls(control$trace, 0)
+      fit <- nlminb(pars, self$nll$fn, self$nll$gr, control = list(trace = trace)) ## suppressWarnings(
       self$estimated_pars <- reList(pars = fit$par)
       return(fit)
     },
@@ -198,6 +199,20 @@ acousticModel <- R6::R6Class("acousticModel",
       pars <- initValues(self, self$negll$par)
       fit <- nlminb(pars, self$nll$fn, self$nll$gr) #suppressWarnings(
       self$estimated_pars <- reList(pars = fit$par)
+      return(fit)
+    },
+    #' @description Fit Model with Joint Likelihood Gradient
+    #' @param alpha Diffusion rate.
+    #' @param beta Advection rates.
+    #' @param q Detection probability.
+    #' @param gamma Centre of attraction.
+    #' @param emissionrate Rate that the tags send a signal for detection.
+    #' @param studyperiod Time period of the study.
+    #' @param mu Rate of mortality per unit time.
+    #' @param control List of object controls which include tolerance, rescale_freq, Nmax, uniformization, trace that controls the RTMB function \code{expAv}.
+    #' @details Run simulation and then fit using `nlminb`.    
+    fitModel = function(alpha, beta, q, gamma = NULL, emissionrate = 720, studyperiod, mu = NULL, control = list()){
+      fit <- fit_negll(self, alpha, beta, q, gamma, mu, control = control)
       return(fit)
     }
   )

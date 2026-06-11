@@ -139,6 +139,81 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
 }
 
 
+make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control = list()){
+
+  mmpp <- extractControls(control$mmpp, TRUE)
+  transpose <- extractControls(control$transpose, TRUE)
+
+  ouprocess <- !is.null(gamma)
+  includemortality <- !is.null(mu)
+
+  nstates <- self$nstates + includemortality
+
+  theta <- c(log(alpha), beta)
+  if(mmpp) theta <- c(theta, log(q/(1-q)))
+  if(includemortality) theta <- c(theta, log(mu))
+  if(ouprocess) theta <- c(theta, gamma)
+  
+  delta_x <- self$resolution[1]
+  if(self$resolution[1] != self$resolution[2]) stop("Currently must assume that delta_x = delta_y (square grid).")
+  delta_xy <- prod(self$resolution)
+  
+  nalpha <- length(alpha)
+  nbeta <- length(beta)
+  ntheta <- length(theta)
+
+  absorbingstates = self$absorbingstates
+  itoj <- self$itoj
+  designmatrix <- self$designmatrix
+  design_ou <- self$design_ou
+  emissionrate <- self$emissionrate
+  detectors <- self$detectors
+
+  expAv_atomic <- function(theta){
+    ####### Sometimes necessary to avoid rtmb errors #######
+    # "[<-" <- RTMB::ADoverload("[<-")
+    # "diag<-" <- RTMB::ADoverload("diag<-")
+    # "c" <- RTMB::ADoverload("c")
+  
+    ## Process theta vector: 'v, tdiff, alpha, beta, q, mu'
+    iter <- 1
+    alpha <- exp(theta[iter:(iter + nalpha - 1)])
+    iter <- iter + nalpha
+    beta <- theta[iter:(iter + nbeta - 1)]
+    iter <- iter + nbeta
+    if(mmpp){
+      q <- 1/(1+exp(-theta[iter]))
+      iter <- iter + 1
+    }
+    if(includemortality){
+      mu <- exp(theta[iter])
+      iter <- iter + 1
+    }else{
+      mu <- NULL
+    }
+    if(ouprocess){
+      gamma <- theta[iter:(iter+1)]
+      iter <- iter + 2
+    }else{
+      gamma <- NULL
+    }
+    
+    ## Build Generator:
+    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_x, absorbingstates, itoj, designmatrix, design_ou)
+    
+    ## Remove Detection rate from generator if MMPP.
+    if(mmpp){
+      detRate <- emissionrate*q
+      for(i in seq_along(detectors$state_id)) Q[detectors$state_id[i], detectors$state_id[i]] <- Q[detectors$state_id[i], detectors$state_id[i]] - detRate
+    }
+    if(transpose) Q <- t(Q)
+    return(Q)
+  }
+  F <- MakeTape(expAv_atomic, theta)
+  return(F)
+}
+
+
 make_expav_atomic_approx <- function(self, n = 1, delta = 0.1, alpha, beta, q, mu = NULL, gamma = NULL, control = list()){
 
   rescale_freq <- extractControls(control$rescale_freq, 25)

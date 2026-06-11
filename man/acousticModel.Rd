@@ -62,6 +62,7 @@ An R6 base class that is used to fit a Markov modulated Poisson process to acous
 \item \href{#method-acousticModel-processData}{\code{acousticModel$processData()}}
 \item \href{#method-acousticModel-simFit}{\code{acousticModel$simFit()}}
 \item \href{#method-acousticModel-fitMove}{\code{acousticModel$fitMove()}}
+\item \href{#method-acousticModel-fitModel}{\code{acousticModel$fitModel()}}
 \item \href{#method-acousticModel-clone}{\code{acousticModel$clone()}}
 }
 }
@@ -438,6 +439,50 @@ Simulate and Fit Movement Using Telemetry Data on a fixed Interval.
 }
 \subsection{Details}{
 Run simulation only if simulation hasn't been run. Then process data as fixed interval telemetry and then fit using \code{nlminb}.
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-acousticModel-fitModel"></a>}}
+\if{latex}{\out{\hypertarget{method-acousticModel-fitModel}{}}}
+\subsection{Method \code{fitModel()}}{
+Fit Model with Joint Likelihood Gradient
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{acousticModel$fitModel(
+  alpha,
+  beta,
+  q,
+  gamma = NULL,
+  emissionrate = 720,
+  studyperiod,
+  mu = NULL,
+  control = list()
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{alpha}}{Diffusion rate.}
+
+\item{\code{beta}}{Advection rates.}
+
+\item{\code{q}}{Detection probability.}
+
+\item{\code{gamma}}{Centre of attraction.}
+
+\item{\code{emissionrate}}{Rate that the tags send a signal for detection.}
+
+\item{\code{studyperiod}}{Time period of the study.}
+
+\item{\code{mu}}{Rate of mortality per unit time.}
+
+\item{\code{control}}{List of object controls which include tolerance, rescale_freq, Nmax, uniformization, trace that controls the RTMB function \code{expAv}.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Details}{
+Run simulation and then fit using \code{nlminb}.
 }
 
 }

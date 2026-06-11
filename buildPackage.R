@@ -23,6 +23,8 @@ use_package("R6")
 
 use_build_ignore(c("buildPackage.R"))
 
+Rcpp::compileAttributes()
+
 usethis::use_rcpp()
 
 usethis::use_tidy_description()

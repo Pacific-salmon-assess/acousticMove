@@ -2,11 +2,9 @@ library(RTMB)
 library(R6)
 library(Matrix)
 library(ggplot2)
-# library(acousticMove)
+library(acousticMove)
 
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
-
-# sourceCpp("src/expAv.cpp")
 
 ## New Version:
 # remotes::install_github("Pacific-salmon-assess/acousticMove")
@@ -15,6 +13,7 @@ library(ggplot2)
 library(Rcpp)
 library(RcppArmadillo)
 data("sim_1")
+sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.1)
@@ -27,20 +26,6 @@ studyperiod <- 50
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
 Q <- obj$calculateQ(alpha, beta, mu, gamma)
-v <- numeric(obj$nstates)
-v[obj$detectors$state_id[1]] <- 1
-ev <- acousticMove:::expAv_cpp(Q*10, v, 1e-8, 5, FALSE)
-evR <- RTMB::expAv(Q*10, v)
-plot(ev, evR)
-
-ev2 <- expAv_cpp(Q*10, v, 1e-8, 5, TRUE)
-evR2 <- expAv(t(Q)*10, v, control = list(tranpose = TRUE, rescale_freq = 5))
-plot(ev2 - evR2)
-plot(evR2, ev3[,1])
-plot(ev2, ev3[,1])
-
-eQ <- Matrix::expm(Q*10)
-ev3 <- t(eQ) %*% v
 
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
@@ -57,13 +42,31 @@ ggplot(data = obj$statespace, aes(x=x, y=y)) +
 plot_limit(obj, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, "habitat", "Habitat")
 v <- numeric(obj$nstates)
 v[obj$statespace$x == 0.5 & obj$statespace$y == 0.5] <- 1
+
+ev <- expAv(Q*5, v, transpose = FALSE)
+evt <- expAv(Q*5, v, transpose = TRUE)
+plot(ev, evt)
+
+evc <- expAv_cpp(Q*3, v, tol = 1e-8, renorm_freq = 25, trans = FALSE)
+evc2 <- expAv_cpp(Q*3, v, tol = 1e-8, renorm_freq = 25, trans = TRUE)
+plot(evc[,1], evc2)
+
+
 plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, expected = TRUE)
 plot_path(obj, deltat = 0.1, tstart = 0, tend = 0.5, s_init = v, alpha = alpha, beta = beta, gamma = gamma, mu = NULL, expected = FALSE)
 
 ## Fit a model:
 obj$makeADFun(alpha, beta, q, mu, gamma, emissionrate = emissionrate, studyperiod = studyperiod)
+
+tictoc::tic()
+obj$negll$fn(obj$negll$par)
 obj$negll$gr(obj$negll$par)
-fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr)
+
+tictoc::tic()
+negll_gr(x)
+tictoc::toc()
+
+fit <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr, control = list(trace = 1))
 reList(fit$par)
 
 Q <- obj$calculateQ(alpha, beta, mu, gamma)

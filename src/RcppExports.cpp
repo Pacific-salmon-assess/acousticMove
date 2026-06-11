@@ -11,9 +11,19 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// inplace_transpose_sparse
+void inplace_transpose_sparse(arma::sp_mat& X);
+RcppExport SEXP _acousticMove_inplace_transpose_sparse(SEXP XSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::sp_mat& >::type X(XSEXP);
+    inplace_transpose_sparse(X);
+    return R_NilValue;
+END_RCPP
+}
 // expAv_cpp
-arma::vec expAv_cpp(const arma::sp_mat& A, const arma::vec& v, double tol, int renorm_freq, bool forward);
-RcppExport SEXP _acousticMove_expAv_cpp(SEXP ASEXP, SEXP vSEXP, SEXP tolSEXP, SEXP renorm_freqSEXP, SEXP forwardSEXP) {
+arma::vec expAv_cpp(const arma::sp_mat& A, const arma::vec& v, double tol, int renorm_freq, bool trans);
+RcppExport SEXP _acousticMove_expAv_cpp(SEXP ASEXP, SEXP vSEXP, SEXP tolSEXP, SEXP renorm_freqSEXP, SEXP transSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -21,14 +31,48 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type v(vSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
     Rcpp::traits::input_parameter< int >::type renorm_freq(renorm_freqSEXP);
-    Rcpp::traits::input_parameter< bool >::type forward(forwardSEXP);
-    rcpp_result_gen = Rcpp::wrap(expAv_cpp(A, v, tol, renorm_freq, forward));
+    Rcpp::traits::input_parameter< bool >::type trans(transSEXP);
+    rcpp_result_gen = Rcpp::wrap(expAv_cpp(A, v, tol, renorm_freq, trans));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_multiply
+arma::mat fast_multiply(const arma::mat& dA, const arma::vec& term, const std::vector<int>& row_indx, const std::vector<int>& col_ptr);
+RcppExport SEXP _acousticMove_fast_multiply(SEXP dASEXP, SEXP termSEXP, SEXP row_indxSEXP, SEXP col_ptrSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::mat& >::type dA(dASEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type term(termSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type row_indx(row_indxSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type col_ptr(col_ptrSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_multiply(dA, term, row_indx, col_ptr));
+    return rcpp_result_gen;
+END_RCPP
+}
+// expAv_gr_cpp
+Rcpp::List expAv_gr_cpp(const arma::sp_mat& A, const arma::mat& dA, const arma::vec& v, double tol, int renorm_freq, const std::vector<int>& row_indx, const std::vector<int>& col_ptr);
+RcppExport SEXP _acousticMove_expAv_gr_cpp(SEXP ASEXP, SEXP dASEXP, SEXP vSEXP, SEXP tolSEXP, SEXP renorm_freqSEXP, SEXP row_indxSEXP, SEXP col_ptrSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type dA(dASEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type v(vSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type renorm_freq(renorm_freqSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type row_indx(row_indxSEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type col_ptr(col_ptrSEXP);
+    rcpp_result_gen = Rcpp::wrap(expAv_gr_cpp(A, dA, v, tol, renorm_freq, row_indx, col_ptr));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_acousticMove_inplace_transpose_sparse", (DL_FUNC) &_acousticMove_inplace_transpose_sparse, 1},
     {"_acousticMove_expAv_cpp", (DL_FUNC) &_acousticMove_expAv_cpp, 5},
+    {"_acousticMove_fast_multiply", (DL_FUNC) &_acousticMove_fast_multiply, 4},
+    {"_acousticMove_expAv_gr_cpp", (DL_FUNC) &_acousticMove_expAv_gr_cpp, 7},
     {NULL, NULL, 0}
 };
 
