@@ -173,8 +173,6 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
     par$logmu <- logmu
   }
   
-  N <- length(self$observations)
-
   if(is.vector(gamma)){
     gamma <- matrix(gamma, nrow = 1, ncol = 2)
   }
@@ -233,7 +231,7 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
     N <- nrow(observations)
     ll <- 0
 
-    for(i in 1:nobs){
+    for(i in 1:N){
       if(!is.null(gamma)){
         if(nrow(gamma) == 1){ theta[gamma_indx] <- drop(gamma[1, 1:2])
         }else{ theta[gamma_indx] <- drop(gamma[observations$animal_id[i], 1:2])}
