@@ -52,6 +52,10 @@ obj$negll$fn(obj$negll$par)
 tictoc::tic()
 fit <- fit_negll(obj, alpha, beta, q, gamma = gamma, mu = mu, control = list(trace = 1))
 tictoc::toc()
+
+tictoc::tic()
+fit2 <- fit_negll(obj, alpha, beta, q, gamma = gamma, mu = mu, control = list(trace = 1, jump_min = 1/24*0.25))
+tictoc::toc()
 ## 371.17 seconds
 
 tictoc::tic()

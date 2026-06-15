@@ -11,7 +11,7 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
   if(is.null(detections)){
     detections <- self$sim_obs
   }
-  if(!is.null(studyperiod)) self$studyperiod = studyperiod
+  if(!is.null(studyperiod)) self$studyperiod <- studyperiod
 
   lookup_animal_id <- unique(detections$animal_id)
   animal_id <- as.numeric(factor(lookup_animal_id))
@@ -48,7 +48,7 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
     known_fates$animal_id <- animal_id[known_fates$animal_id]
     known_fates$state_id <- calc_states(self, known_fates[, c("x", "y")])
     if(any(known_fates$fate == "failure")){
-      known_fate$state_id <- self$nstates + 1 ## Mortality state for a known loss.
+      known_fates$state_id <- self$nstates + 1 ## Mortality state for a known loss.
     }
   }
   if(!is.null(releases)){
@@ -84,6 +84,7 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
       if(nrow(fatei) > 0) {
         newdat[nobs,"time"] <- fatei$time
         newdat[nobs, "state_id"] <- fatei$state_id
+        newdat$deltat[nobs] <- newdat[nobs,"time"] -  newdat[nobs,"time_prev"]
         if(fatei$fate != "success") newdat[nobs, "fate"] <- "Dead"
       }
     }

@@ -151,9 +151,10 @@ acousticModel <- R6::R6Class("acousticModel",
     #' @param releases Where and when the animals were released.
     #' @param known_fates Time and states of known fates of animals.
     #' @param absorbing_states States that are absorbing if the animal arrives.
+    #' @param studyperiod How long was the study run for.
     #' @details See \code{?process_data} for details.
-    processData = function(detections = NULL, releases = NULL, known_fates = NULL, absorbing_states = NULL){
-      process_data(self, detections, releases, known_fates, absorbing_states)
+    processData = function(detections = NULL, releases = NULL, known_fates = NULL, absorbing_states = NULL, studyperiod = NULL){
+      process_data(self, detections, releases, known_fates, absorbing_states, studyperiod)
     },
     #' @description Simulate and Fit Acoustic Telemetry Data
     #' @param N Number of animals.
