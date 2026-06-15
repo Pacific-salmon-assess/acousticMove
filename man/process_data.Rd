@@ -9,7 +9,8 @@ process_data(
   detections = NULL,
   releases = NULL,
   known_fates = NULL,
-  absorbing_states = NULL
+  absorbing_states = NULL,
+  studyperiod = NULL
 )
 }
 \arguments{
