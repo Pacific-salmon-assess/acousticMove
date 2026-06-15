@@ -7,11 +7,12 @@
 #' @param absorbing_states Vector of which states are considered absorbing, such as entering a river system (default = NULL).
 #'
 #' @export
-process_data <- function(self, detections = NULL, releases = NULL, known_fates = NULL, absorbing_states = NULL){
+process_data <- function(self, detections = NULL, releases = NULL, known_fates = NULL, absorbing_states = NULL, studyperiod = NULL){
   if(is.null(detections)){
     detections <- self$sim_obs
   }
-  
+  if(!is.null(studyperiod)) self$studyperiod = studyperiod
+
   lookup_animal_id <- unique(detections$animal_id)
   animal_id <- as.numeric(factor(lookup_animal_id))
   names(animal_id) <- lookup_animal_id
@@ -23,7 +24,6 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
   ## Add state_id to detections:
   if(!"state_id" %in% names(detections)){
     ## Remove all detections that are not within the statespace:
-    detections[, c("x", "y")] 
     detections$state_id <- calc_states(self, locs = detections[, c("x", "y")])
     if(any(is.na(detections$state_id))){
       cat("Removing detections outside of the statespace.\n")
@@ -34,7 +34,9 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
     navals <- which(is.na(detections$state_id))
     cat("Removing", length(navals), "that had NA state_id.\n")
   }
-  
+  if(!"detector_id" %in% names(detections)){
+    detections$detector_id <- NA
+  }
   if(!is.null(absorbing_states)){
     self$absorbingstates <- unique(calc_states(self, absorbing_states[, c("x", "y")]))
   }else{
@@ -57,8 +59,8 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
       releases$time <- 0
     }
   }
-  
-  observations <- list()
+    
+  observations <- data.frame()
   for( i in 1:N ){
     deti <- detections |> subset(animal_id == i)
     deti <- deti[order(deti$time),] 
@@ -67,16 +69,25 @@ process_data <- function(self, detections = NULL, releases = NULL, known_fates =
       reli <- releases |> subset(animal_id == i)
       reli$state_id <- NA
       deti <- rbind(reli, deti)
-    }   
-    observations[[i]] <- list()
-    observations[[i]]$detections <- as.matrix(deti[, c("time", "state_id")])
-    observations[[i]]$ndets <- nrow(deti)
+    }
+    nobs <- nrow(deti)
+    newdat <- data.frame(animal_id = i, time = deti$time[-1], detector_id = deti$detector_id[-1], 
+               state_id = deti$state_id[-1], state_id_prev = deti$state_id[-nobs], time_prev = deti$time[-nobs])
+    ## Add right censoring:
+    newdat <- newdat |> rbind(data.frame(animal_id = i, time = self$studyperiod, detector_id = NA, 
+               state_id = NA, state_id_prev = deti$state_id[nobs], time_prev = deti$time[nobs]))
+    newdat <- newdat |> within(deltat <- time - time_prev) 
+    newdat$fate <- "Alive"
     ## Add known fates if provided
     if(!is.null(known_fates)){
       fatei <- known_fates |> subset(animal_id == i)
-      if(nrow(fatei) == 0) observations[[i]]$known_fate  <- NULL
-      else observations[[i]]$known_fate <- c("time" = fatei$time,  "state_id" = fatei$state_id)
+      if(nrow(fatei) > 0) {
+        newdat[nobs,"time"] <- fatei$time
+        newdat[nobs, "state_id"] <- fatei$state_id
+        if(fatei$fate != "success") newdat[nobs, "fate"] <- "Dead"
+      }
     }
+    observations <- rbind(observations, newdat)
   }
   self$observations <- observations
 }

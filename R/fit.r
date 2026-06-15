@@ -55,11 +55,10 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
   # for(i in seq_along(self$detectors$state_id)) Q[self$detectors$state_id[i], self$detectors$state_id[i]] <- Q[self$detectors$state_id[i], self$detectors$state_id[i]] - detRate
 
   for( k in 1:N ){
-    timesk <- self$observations[[k]]$detections[,"time"]
-    obstatek <- self$observations[[k]]$detections[,"state_id"]
+    detsk <- self$observations |> subset(animal_id == k)
   
     forwardprob <- matrix(0, nrow = nstates, ncol = nsteps)
-    forwardprob[obstatek[1],1] <- 1
+    forwardprob[detsk[1, "state_id_prev"],1] <- 1
 
     if(!is.null(gamma)) theta[indx_gamma] <- gamma[k,1:2]
 
@@ -67,19 +66,17 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
     for(i in 2:nsteps ){
       t1 <- tsteps[i]
       t0 <- tsteps[i-1]
-      indxi <- which(timesk <= t1 & timesk > t0)
-      nobsi <- length(indxi)
-      detsi <- obstatek[indxi]
-      timesi <- timesk[indxi]
+      detski <- detsk |> subset(time <= t1 & time > t0)
+      nobsi <- nrow(detski)
       forwardprob[,i] <- forwardprob[,i-1]
       if(nobsi > 0){
         for(j in 1:nobsi){ 
           theta[1:nstates] <- forwardprob[,i]
-          theta[nstates+1] <- (timesi[j]-t0)
+          theta[nstates+1] <- detski$deltat[j]
           forwardprob[,i] <- expAv_tranpose(theta)
-          t0 <- timesi[j]
-          forwardprob[detsi[j],i] <- forwardprob[detsi[j],i]*self$emissionrate*q
-          forwardprob[-detsi[j],i] <- 0
+          t0 <- detski$time[j]
+          forwardprob[detski$state_id[j],i] <- forwardprob[detski$state_id[j],i]*self$emissionrate*q
+          forwardprob[-detski$state_id[j],i] <- 0
         }
       }
       theta[1:nstates] <- forwardprob[,i]
@@ -99,19 +96,17 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
     for(i in 1:(nsteps-1) ){
       t0 <- tsteps[nsteps-i]
       t1 <- tsteps[nsteps-i+1]
-      indxi <- which(timesk < t1 & timesk >= t0)
-      nobsi <- length(indxi)
-      detsi <- obstatek[indxi]
-      timesi <- timesk[indxi]
+      detski <- detsk |> subset(time_prev <= t1 & time_prev > t0)
+      nobsi <- nrow(detski)
       backwardprob[,nsteps-i] <- backwardprob[,nsteps-i+1]
       if(nobsi > 0){
         for(j in 1:nobsi){
           theta[1:nstates] <- backwardprob[,nsteps-i]
-          theta[nstates+1] <- (t1 - timesi[nobsi-j+1])
+          theta[nstates+1] <- (t1 - detski$time_prev[nobsi-j+1])
           backwardprob[,nsteps-i] <- expAv_atomic(theta)
-          t1 <- t1 - (t1 - timesi[nobsi-j+1])
-          backwardprob[detsi[nobsi-j+1],nsteps-i] <- backwardprob[detsi[nobsi-j+1],nsteps-i]*self$emissionrate*q
-          backwardprob[-detsi[nobsi-j+1],nsteps-i] <- 0
+          t1 <- t1 - (t1 - detski$time_prev[nobsi-j+1])
+          backwardprob[detski$state_id_prev[nobsi-j+1],nsteps-i] <- backwardprob[detski$state_id_prev[nobsi-j+1],nsteps-i]*self$emissionrate*q
+          backwardprob[-detski$state_id_prev[nobsi-j+1],nsteps-i] <- 0
         }
       }
       theta[1:nstates] <- backwardprob[,nsteps-i]
@@ -154,7 +149,7 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
 #'
 #' @export
 make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = list()){
-
+  
   silent <- extractControls(control$silent, TRUE)
   nbeta <- ncol(self$designmatrix)
   
@@ -235,39 +230,27 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
     detRate <- emissionrate*q
     logdetRate <- log(detRate)
         
-    N <- length(observations)
+    N <- nrow(observations)
     ll <- 0
-    for( i in 1:N ){
+
+    for(i in 1:nobs){
       if(!is.null(gamma)){
         if(nrow(gamma) == 1){ theta[gamma_indx] <- drop(gamma[1, 1:2])
-        }else{ theta[gamma_indx] <- drop(gamma[i, 1:2])}
-      }    
-      timesi <- observations[[i]]$detections[,"time"]
-      obstatei <- observations[[i]]$detections[,"state_id"]
-      v <- AD(numeric(nstates))
-      v[obstatei[1]] <- 1
-      nobsi <- observations[[i]]$ndets  ## Ensure we stop at the end of study:
-      theta[1:nstates] <- v
-      nobsi <- observations[[i]]$ndets
-      if(nobsi > 1){
-        for(j in 2:nobsi){
-          theta[nstates+1] <- (timesi[j]-timesi[j-1])
-          pstate <- expAv_forward(theta)
-          v <- AD(numeric(nstates))
-          v[obstatei[j]] <- 1
-          theta[1:nstates] <- v          
-          ll <- ll + log(pstate[obstatei[j]]) + logdetRate
-        }
+        }else{ theta[gamma_indx] <- drop(gamma[observations$animal_id[i], 1:2])}
       }
-      ## If known state of the animal then include it here:
-      if(!is.null(observations[[i]]$known_fate)){
-        theta[nstates+1] <- observations[[i]]$known_fate["time"]-timesi[nobsi]
-        pstate <- expAv_forward(theta)
-        ll <- ll + log(pstate[observations[[i]]$known_fate["state_id"]])
+      deltat <- observations$deltat[i]
+      statei0 <- observations$state_id_prev[i]
+      statei1 <- observations$state_id[i]
+      v <- AD(numeric(nstates))
+      v[statei0] <- 1
+      theta[1:nstates] <- v
+      theta[nstates+1] <- deltat
+      pstate <- expAv_forward(theta)
+      
+      if(!is.na(statei1)){
+        ll <- ll + log(pstate[statei1]) + logdetRate
       }else{
         ## Right censoring
-        theta[nstates+1] <- studyperiod - timesi[nobsi]      
-        pstate <- expAv_forward(theta)
         logpstate <- log(pstate)
         maxlp <- max(logpstate)
         ll <- ll + log(sum(exp(logpstate - maxlp))) + maxlp
@@ -303,6 +286,8 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   trace <- extractControls(control$trace, 0)
   rescale_freq <- extractControls(control$rescale_freq, 25)
   tol <- extractControls(control$tolerance, 1e-8)
+  random_start <- extractControls(control$random_start, TRUE)
+  jump_min <- extractControls(control$jump_minimum, 0)
 
   nbeta <- ncol(self$designmatrix)
   
@@ -335,6 +320,8 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   
   nstates <- self$nstates + !is.null(mu)
   observations <- self$observations
+  ## Ensure sorted by animal_id
+  observations <- observations[order(observations$animal_id),]
 
   m <- nrow(self$statespace)
   xmax <- max(self$designmatrix)
@@ -348,7 +335,7 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   gamma_check <- NULL
   if(!is.null(gamma)) gamma_check <- c(0,0)
   calc_Q <- make_Q_rtmb(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma_check, control = control) 
-  theta <- as.numeric(do.call("c", par))
+  
   Q_gr <- calc_Q$jacfun()
 
   x <- do.call("c", par)
@@ -361,47 +348,68 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   log_det_gr <- log_det_fn$jacfun()
 
   negll_gr <- function(x){
-    Q <- calc_Q(x)
+    
+    ## Par order must be logalpha, beta, logitq, logmu, gamma.    
+    theta <- x[grep("logalpha", names(x))]
+    theta <- c(theta, x[grep("beta", names(x))])
+    theta <- c(theta, x[grep("logitq", names(x))])
+    if(!is.null(mu)) theta <- c(theta, x[grep("logmu", names(x))])    
+    ntheta <- length(theta)
+    ngamma <- 0
+    if(!is.null(gamma)){
+      .gamma <- x[grep("gamma", names(x))]
+      ngamma <- length(.gamma)
+      theta <- c(theta, .gamma[1:2])
+    }
+    
+    Q <- calc_Q(theta)
     if(any(min(Q - diag(diag(Q))) < 0)) return(NaN) ## Not valid pars.
-    Qgr <- Q_gr(x)    
+    Qgr <- Q_gr(theta)    
     
     logdetrate <- log_det_fn(x)
     gr_logdetrate <- log_det_gr(x)
 
-    N <- length(observations)
     ll <- 0
     gr <- numeric(length(x))
+    nobs <- nrow(observations)
 
-    for( i in 1:N ){
-      timesi <- observations[[i]]$detections[,"time"]
-      obstatei <- observations[[i]]$detections[,"state_id"]
+    for(i in 1:nobs){
+      id <- observations$animal_id[i]
+      idnext <- observations$animal_id[i+1]
+      deltat <- observations$deltat[i]
+      statei0 <- observations$state_id_prev[i]
+      statei1 <- observations$state_id[i] 
       v <- numeric(nstates)
-      v[obstatei[1]] <- 1
-      nobsi <- observations[[i]]$ndets  ## Ensure we stop at the end of study:
-      if(nobsi > 1){
-        for(j in 2:nobsi){
-          p_gr <- acousticMove:::expAv_gr_cpp(Q*(timesi[j]-timesi[j-1]), Qgr*(timesi[j]-timesi[j-1]), v, tol, rescale_freq, Q@i, Q@p)
-          v <- numeric(nstates)
-          v[obstatei[j]] <- 1
-          ll <- ll + log(p_gr[["ans"]][obstatei[j]]) + logdetrate
-          gr <- gr + p_gr[["gr_ans"]][obstatei[j],]/p_gr[["ans"]][obstatei[j]] + gr_logdetrate
+      v[statei0] <- 1
+      if(!is.na(statei1)){
+        if(deltat < jump_min & statei0 == statei1){
+          ll_i <- Q[statei0, statei0]*deltat + logdetrate  ## Can't leave the state so simply exp(Qii)
+          ## Find diag in col sparse matrix:
+          rindx <- Q@i[Q@p[statei0]:(Q@p[statei0+1]-1) + 1] + 1
+          indx <- Q@p[statei0] + which(rindx == statei0)
+          gr_i <- Qgr[indx,]*deltat  + gr_logdetrate 
+        }else{ 
+          p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
+          ll_i <- log(p_gr[["ans"]][statei1]) + logdetrate
+          gr_i <- p_gr[["gr_ans"]][statei1,]/p_gr[["ans"]][statei1] + gr_logdetrate
         }
-      }
-      ## If known state of the animal then include it here:
-      if(!is.null(observations[[i]]$known_fate)){
-        deltat <- observations[[i]]$known_fate["time"]-timesi[nobsi]
-        p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
-        ll <- ll + log(p_gr[["ans"]][observations[[i]]$known_fate["state_id"]])
-        gr <- gr + p_gr[["gr_ans"]][obstatei[j],]/p_gr[["ans"]][[observations[[i]]$known_fate["state_id"]]] 
       }else{
-        ## Right censoring
-        deltat <- studyperiod - timesi[nobsi]      
         p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
         logpstate <- log(p_gr[["ans"]])
         maxlp <- max(logpstate)
         log_p_marg <- log(sum(exp(logpstate - maxlp))) + maxlp
-        ll <- ll + log_p_marg
-        gr <- gr + colSums(p_gr[["gr_ans"]])/exp(log_p_marg)
+        ll_i <- log_p_marg
+        gr_i <- colSums(p_gr[["gr_ans"]])/exp(log_p_marg)
+      }
+      ll <- ll + ll_i
+      gr <- gr + gr_i
+      
+      ## Per animal covariates e.g. activity centres.
+      if(id != idnext & ngamma > 2){
+        theta[ntheta:(ntheta+1) + 1] <- .gamma[(1:2) + (idnext-1)*2]
+        Q <- calc_Q(theta)
+        if(any(min(Q - diag(diag(Q))) < 0)) return(NaN) ## Not valid pars.
+        Qgr <- Q_gr(theta)          
       }
     }
     nll <- -ll
@@ -414,13 +422,13 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
     }else{
       assign("pars_NaN", x, envir = cached_env) 
     }
-    return(-ll)
+    return(nll)
   }
   x <- do.call('c', par)
-  x <- initValues(self, x)
+  if(random_start) x <- initValues(self, x)
   ## Make sure beta is not negative for OU process... Best to confirm that should be true.
   if(!is.null(gamma) & x[grep("beta", names(x))][length(beta)] < 0) x[grep("beta", names(x))][length(beta)] <- 0.0001
-  fit <- nlminb(x, negll_gr, \(x){cached_env$grad}, control = list(trace = trace))
+  fit <- suppressWarnings(nlminb(x, negll_gr, \(x){cached_env$grad}, control = list(trace = trace)))
   self$estimated_pars <- reList(fit$par)
   return(fit)
 }
