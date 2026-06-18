@@ -137,3 +137,78 @@ Rcpp::List expAv_gr_cpp(const arma::sp_mat& A, const arma::mat& dA, const arma::
   gr_ans *= correction;
   return Rcpp::List::create(Rcpp::Named("ans") = ans, Rcpp::Named("gr_ans") = gr_ans);
 }
+
+//' Compute Linear approximation of expAv and gradient of expAv jointly
+//' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
+//' @param v Vector (column vector) of to do exp(A)*v.
+//' @param lambda Vector (column vector) of detection rate.
+//' @param tol Tolerance default = 1e-8.
+//' @param trans Logical to confirm if we should do transpose of A.
+//' @details Computes joint expAv and the gradient as implemented in 'Differentiated uniformization: a new method for inferring Markov chains on combinatorial state spaces including stochastic epidemic models'.
+// [[Rcpp::export]]
+arma::vec expAv_approx_cpp(const arma::sp_mat& A, const arma::vec& v, 
+                               const arma::vec& lambda, double tol) {
+  const double rho=-A.min();
+
+  const int nr=A.n_rows, nc=A.n_cols;
+  const unsigned int niters = ::Rf_qpois( tol, rho, false, false);
+  // const unsigned int niters = ceil(rho*2);
+  unsigned int n;
+  const arma::sp_mat R = A/niters+arma::speye(nr, nc);
+  arma::vec term = v;
+  const arma::vec pdet = 1-lambda/niters;//exp(-lambda / niters);
+  
+  n=1;
+  while (n<=niters) {
+    term %= pdet;
+    term = R*term;    
+    n++;
+  }
+  term %= pdet;
+  return term;
+}
+
+
+//' Compute Linear approximation of expAv and gradient of expAv jointly
+//' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
+//' @param dA A matrix that has row of non-zero gradient of A and columns for each parameter.
+//' @param v Vector (column vector) of to do exp(A)*v
+//' @param pdet Vector (column vector) of exp(-Lambda)
+//' @param dpdet Vector (column vector) of gradient of exp(-Lambda)
+//' @param tol Tolerance default = 1e-8.
+//' @param renorm_freq Renoramlization frequency to avoid computational overload from rho^n/n!.
+//' @param trans Logical to confirm if we should do transpose of A.
+//' @param row_indx Row index from column-sparse matrix "dgCMatrix" \code{A@i}.
+//' @param col_ptr Column pointer from column-sparse matrix "dgCMatrix" \code{A@p}.
+//' @details Computes joint expAv and the gradient as implemented in 'Differentiated uniformization: a new method for inferring Markov chains on combinatorial state spaces including stochastic epidemic models'.
+//// [[Rcpp::export]]
+// Rcpp::List expAv_gr_approx_cpp(const arma::sp_mat& A, arma::mat dA, const arma::vec& v, 
+                               // const arma::vec& pdet, const arma::vec& dpdet, double tol,
+                               // int renorm_freq, const std::vector<int>& row_indx, const std::vector<int>& col_ptr) {
+  // const double rho=-A.min();
+
+  // const int nr=A.n_rows, nc=A.n_cols;
+  // const unsigned int niters = ::Rf_qpois( tol, rho, false, false);
+  // unsigned int n;
+  // const arma::sp_mat R = A/niters+arma::speye(nr, nc);
+  // dA /= niters;
+  // arma::vec term = v;
+
+  // const int npars = dA.n_cols; 
+
+  // arma::mat delta(nr, npars, fill::zeros);
+  // arma::mat gr_ans(nr, npars, fill::zeros);
+  // arma::mat d_term;
+
+  // n=1;
+  // while (n<=niters) {
+    // term*=pdet;
+    // d_term = fast_multiply(dA, term, row_indx, col_ptr); // Need to loop through all theta except logitq.
+    // for(int i=0; i<npars; ++i){
+      // delta.col(i) = d_term.col(i) + R*delta.col(i);  // Need to add dpdet to this. Will be something like: dR*p*term + R*dp*v + Rp dv, where dv is accumulated.
+    // }
+    // term = R*term;    
+    // n++;
+  // }
+  // return Rcpp::List::create(Rcpp::Named("ans") = term, Rcpp::Named("gr_ans") = delta);
+// }

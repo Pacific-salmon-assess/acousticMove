@@ -12,7 +12,7 @@ library(Rcpp)
 library(RcppArmadillo)
 library(RTMB)
 data("sim_1")
-# sourceCpp("src/expAv.cpp")
+sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.1)
@@ -25,6 +25,161 @@ studyperiod <- 50
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
 Q <- obj$calculateQ(alpha, beta, mu, gamma)
+
+vid <- calc_states(obj, data.frame(x=0.5, y=0.5))
+v <- numeric(obj$nstates)
+v[vid] <- 1
+lambda <- numeric(obj$nstates)
+for( i in 1:nrow(obj$detectors) ) lambda[obj$detectors$state_id[i]] <- lambda[obj$detectors$state_id[i]] + emissionrate
+tmp <- expAv_approx_cpp(Q*5, v, lambda, 1e-8)
+Q2 <- Q-diag(lambda)
+tmp2 <- expAv(Q2*5, v)
+plot(tmp[,1], tmp2)
+abline(0, 1, col = 'red')
+idx <- which(abs(tmp2-tmp[,1]) > 1e-4)
+points(tmp[obj$detectors$state_id,1], tmp2[obj$detectors$state_id], col = 'red')
+
+niter <- qpois(1e-8,-min(diag(Q)),lower.tail = FALSE)
+# niter2 <- qpois(1e-8,-min(diag(Q2)),lower.tail = FALSE)
+# Pij <- Matrix::expm(Q/niter)
+rho_nested <- -min(diag(Q))/niter
+nested <- qpois(1e-8, rho_nested, lower.tail = FALSE)
+Pij_approx <- Q/niter + rho_nested*diag(obj$nstates)
+# Pij_approx <- Q/niter/2 + diag(obj$nstates)
+term <- v
+for( i in 1:niter ){
+  term <- exp(-lambda/niter/2)*term
+  ans <- term
+  for(j in 1:nested) {
+    term <- Pij_approx %*% term/j
+    ans <- ans + term
+  }
+  term <- ans*exp(-rho_nested)
+  term <- exp(-lambda/niter/2)*term  
+}
+term2 <- expAv(Q2, v)
+plot(term, term2)
+abline(0,1,col='red')
+points(term[obj$detectors$state_id,1], term2[obj$detectors$state_id], col = 'red')
+plot(term[obj$detectors$state_id,1], term2[obj$detectors$state_id])
+abline(0,1,col='red')
+
+## Make PMat:
+maxrate <- -min(diag(Q))
+deltat <- (pracma::lambertWp(-(1-1e-8)/exp(1)) + 1)/maxrate
+sum(dpois(0:2, maxrate*0.001))
+sum(dpois(0:1, maxrate*0.001))
+niters <- qpois(1e-8, -min(diag(Q)), lower.tail = FALSE)
+deltat <- 1/niters/4
+P <- Matrix::Matrix(0, nrow = obj$nstates, ncol = obj$nstates)
+for( i in 1:obj$nstates ){
+  ## No events:
+  P[i,i] <- exp(-lambda[i]*deltat + Q[i,i]*deltat)
+
+  ## One event:
+  posi <- which(Q[i,] > 0)
+  eq <- posi[which(abs(Q[cbind(posi, posi)] - Q[i,i]) < 1e-8)]
+  pos <- posi
+  if(length(eq) > 0) pos <- pos[!pos %in% eq]
+  
+  P[i,pos] <- P[i, pos] + Q[i, pos]/(-lambda[i] + lambda[pos] + Q[i,i] - Q[cbind(pos, pos)])*(exp((-lambda[i] + Q[i,i])*deltat) - exp((-lambda[pos] + Q[cbind(pos, pos)])*deltat))
+  if(length(eq) > 0) P[i, eq] <- P[i, eq] + Q[i, eq]/(-lambda[i] + lambda[eq] + Q[i,i]) * (exp(-lambda[i]*deltat + Q[i,i]*deltat) - exp(-lambda[eq]*deltat))
+
+  # Two events:
+  # for( j in seq_along(posi) ){
+    # posj <- which(Q[posi[j],] > 0)    
+    # idj <- posi[j]
+    
+    # tmp <- Q[i, idj]*Q[idj, posj]/(-lambda[i] + lambda[idj] + Q[i,i] - Q[idj,idj])
+    # tmp <- tmp*(lambda[posj] - Q[cbind(posj,posj)] - lambda[i] + Q[i,i])*(lambda[posj] - Q[cbind(posj,posj)] - lambda[idj] + Q[idj,idj])
+    # tmp <- tmp*(exp((-lambda[i]+Q[i,i])*deltat) - exp((-lambda[posj]+Q[cbind(posj, posj)])*deltat) - exp((-lambda[idj]+Q[idj,idj])*deltat) + exp((-lambda[idj]+Q[cbind(idj, idj)])*deltat))
+    # P[idj,posj] <- tmp
+    # P[idj,pos] <- P[i,pos]*(exp(-lambda[i]*deltat + Q[i,i]*deltat) - exp(-lambda[pos]*deltat + Q[cbind(pos, pos)]*deltat))
+    # if(length(eq) > 0) P[i, eq] <- Q[i, eq]/(-lambda[i] + lambda[eq] + Q[i,i]) * (exp(-lambda[i]*deltat + Q[i,i]*deltat) - exp(-lambda[eq]*deltat))
+    # Q[pos[j]]
+  # }
+}
+P2 <- P%*%P%*%P%*%P
+
+term <- v
+for( i in 1:niters ){
+  term <- P2 %*% term
+}
+plot(term)
+term2 <- expAv(Q2, v)
+points(term2, col = 'red')
+plot(term[lambda>0], term2[lambda>0])
+abline(0, 1, col='red')
+
+qpois(1e-8, -min(diag(Q2)), lower.tail = FALSE)
+
+id <- 85
+rates <- Q[id, Q[id,] > 0]
+sum_rates <- sum(rates)
+ni <- rpois(100000, sum_rates*deltat)
+hist(ni)
+abline(v = 1, col = 'red')
+sum(P[id, -id][P[id,-id] > 0])
+P[id,id] - mean(ni < 1)*exp(-lambda[id]*deltat)
+
+qpois(1e-8, -min(diag(Q2*deltat)), lower.tail = FALSE)
+term2 <- expAv(Q2*deltat, v)
+plot(term2, P[v==1,])
+abline(0,1,col = 'red')
+
+
+
+
+
+library(pske)
+library(tictoc)
+tic()
+eP <- pske::skeletoid_expm(Q, eps = 1e-8)
+toc()
+tic()
+eP2 <- pske::unif_expm(Q, eps = 1e-8)
+toc()
+tmp <- skeletoid_vtexpm(Q, t_pow = 1, v=Matrix::Matrix(v, nrow = obj$nstates, ncol = 1), eps = 1e-8)
+tmp2 <- unif_vtexpm(Q, t_pow = 1, v=Matrix::Matrix(v, nrow = obj$nstates, ncol = 1), eps = 1e-8)
+K = pske:::skeletoid_auto_tune(Q = Q,t_pow = 1,eps = 1e-8)$K
+part_K = pske:::get_opt_partition(K=K,N=obj$nstates,n3=pske:::glovars$N3,nr=1)
+sp_cost = 1*Matrix::nnzero(Q)*(2^K)
+
+
+qpois(1e-8, -min(diag(Q)), lower.tail = FALSE)
+P <- Matrix::Matrix(0, nrow = obj$nstates, ncol = obj$nstates)
+niter <- 300
+deltat <- 1/niter
+for( i in 1:obj$nstates ){
+  pos <- which(Q[i,] > 0)
+  eq <- pos[which(abs(Q[cbind(pos, pos)] - Q[i,i]) < 1e-8)]
+  P[i,pos] <- Q[i, pos]/(Q[cbind(pos, pos)] - Q[i,i]) * (exp(Q[cbind(pos,pos)]*deltat) - exp(Q[i,i]*deltat))
+  if(length(eq) > 0) P[i,eq] <- Q[i, eq]*deltat*exp(Q[i,i]*deltat)
+  P[i,i] <- exp(Q[i,i]*deltat)
+}
+
+term <- v
+for( i in 1:niter ){
+  term <- P %*% term
+}
+term2 <- expAv(Q2, v)
+
+ggplot(obj$statespace, aes(x=x,y=y)) + geom_tile(aes(fill = term[,]))
+ggplot(obj$statespace, aes(x=x,y=y)) + geom_tile(aes(fill = term2))
+
+plot(term[,1], term2)
+
+plot(term)
+term2 <- expAv(Q2, v)
+plot(term, term2)
+abline(0,1,col='red')
+
+ggplot(data = obj$statespace) + geom_tile(aes(x=x,y=y,fill=habitat)) + 
+  geom_point(data = obj$statespace[idx,], aes(x=x,y=y), col = 'red')
+
+min(diag(Q*20))
+qpois(1e-8, 1440, lower.tail = TRUE)
+ppois(1, 0.5)
 
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
