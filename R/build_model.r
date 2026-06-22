@@ -50,6 +50,7 @@ acousticModel <- R6::R6Class("acousticModel",
     lookup_detector_id = NULL,
     lookup_statespace = NULL,
     estimated_pars = NULL,
+    delta_xy = NULL,
 
     #' @description Initialize the R6 object
     #' @param grid State space that represents where the animal can move and any covariates of interest, must contain x,y columns.
@@ -143,7 +144,7 @@ acousticModel <- R6::R6Class("acousticModel",
     #' @param gamma Centre of attraction.
     calculateQ = function(alpha, beta, mu = NULL, gamma = NULL){
       nstates <- self$nstates + !is.null(mu)
-      Q <- make_generator(alpha = alpha, beta = beta, mu = mu, gamma = gamma, nstates = nstates, dx = self$resolution[1], 
+      Q <- make_generator(alpha = alpha, beta = beta, mu = mu, gamma = gamma, nstates = nstates, dx = self$delta_xy, 
                           self$absorbingstates, self$itoj, self$designmatrix, self$design_ou)
       return(Q)
     },

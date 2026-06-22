@@ -74,9 +74,7 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
   if(includemortality) theta <- c(theta, mu)
   if(ouprocess) theta <- c(theta, gamma)
   
-  delta_x <- self$resolution[1]
-  if(self$resolution[1] != self$resolution[2]) stop("Currently must assume that delta_x = delta_y (square grid).")
-  delta_xy <- prod(self$resolution)
+  delta_xy <- self$delta_xy
   
   nalpha <- length(alpha)
   nbeta <- length(beta)
@@ -122,7 +120,7 @@ make_expav_atomic <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, con
     }
     
     ## Build Generator:
-    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_x, absorbingstates, itoj, designmatrix, design_ou)
+    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_xy, absorbingstates, itoj, designmatrix, design_ou)
     
     ## Remove Detection rate from generator if MMPP.
     if(mmpp){
@@ -169,9 +167,7 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
   if(ouprocess) theta <- c(theta, "gamma" = gamma)
   names(theta) <- gsub("[0-9]", "", names(theta))
   
-  delta_x <- self$resolution[1]
-  if(self$resolution[1] != self$resolution[2]) stop("Currently must assume that delta_x = delta_y (square grid).")
-  delta_xy <- prod(self$resolution)
+  delta_xy <- self$delta_xy
   
   nalpha <- length(alpha)
   nbeta <- length(beta)
@@ -208,7 +204,7 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
     }
     
     ## Build Generator:
-    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_x, absorbingstates, itoj, designmatrix, design_ou)
+    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_xy, absorbingstates, itoj, designmatrix, design_ou)
     
     ## Remove Detection rate from generator if MMPP.
     if(mmpp){
@@ -243,9 +239,7 @@ make_expav_atomic_approx <- function(self, n = 1, delta = 0.1, alpha, beta, q, m
   if(includemortality) theta <- c(theta, mu)
   if(ouprocess) theta <- c(theta, gamma)
   
-  delta_x <- self$resolution[1]
-  if(self$resolution[1] != self$resolution[2]) stop("Currently must assume that delta_x = delta_y (square grid).")
-  delta_xy <- prod(self$resolution)
+  delta_xy <- self$delta_xy
   
   nalpha <- length(alpha)
   nbeta <- length(beta)
@@ -291,7 +285,7 @@ make_expav_atomic_approx <- function(self, n = 1, delta = 0.1, alpha, beta, q, m
     }
     
     ## Build Generator:
-    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_x, absorbingstates, itoj, designmatrix, design_ou)
+    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_xy, absorbingstates, itoj, designmatrix, design_ou)
     
     ## Remove Detection rate from generator if MMPP.
     detRate <- emissionrate*q

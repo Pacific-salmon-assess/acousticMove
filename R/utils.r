@@ -263,7 +263,7 @@ generator_design_gr <- function(self, formula){
   ## Make sure everything is ordered:
   self$statespace <- self$statespace[order(self$statespace$state_id),]
   ids <- self$statespace$state_id
-  delta_x <- self$resolution[1]
+  delta_xy <- self$resolution
   DF <- data.frame()
   ij <- data.frame()
   
@@ -274,19 +274,19 @@ generator_design_gr <- function(self, formula){
   
   ## Central Difference (f(x+h) - f(x-h))/(2*delta)
   grad <- list()
-  grad[["LR"]] <- (R[, vars, drop = FALSE] - L[, vars])/(2*delta_x)
-  grad[["UD"]] <- (U[, vars, drop = FALSE] - D[, vars])/(2*delta_x)
+  grad[["LR"]] <- (R[, vars, drop = FALSE] - L[, vars])/(2*delta_xy[1])
+  grad[["UD"]] <- (U[, vars, drop = FALSE] - D[, vars])/(2*delta_xy[2])
 
   
   ## IF R/L doesn't exist and only one direction, then use an approximation a single direction.
   Lb <- which(is.na(self$statespace[, c("RookL")]))
-  grad[["LR"]][Lb,] <- (R[Lb, vars, drop = FALSE] - self$statespace[Lb, vars])/(delta_x)
+  grad[["LR"]][Lb,] <- (R[Lb, vars, drop = FALSE] - self$statespace[Lb, vars])/(delta_xy[1])
   Rb <- which(is.na(self$statespace[, c("RookR")]))
-  grad[["LR"]][Rb,] <- (self$statespace[Rb, vars, drop = FALSE] - L[Rb, vars, drop = FALSE])/(delta_x)
+  grad[["LR"]][Rb,] <- (self$statespace[Rb, vars, drop = FALSE] - L[Rb, vars, drop = FALSE])/(delta_xy[1])
   Db <- which(is.na(self$statespace[, c("RookD")]))
-  grad[["UD"]][Db,] <- (U[Db, vars, drop = FALSE] - self$statespace[Db, vars, drop = FALSE])/(delta_x)    
+  grad[["UD"]][Db,] <- (U[Db, vars, drop = FALSE] - self$statespace[Db, vars, drop = FALSE])/(delta_xy[2])    
   Ub <- which(is.na(self$statespace[, c("RookU")]))
-  grad[["UD"]][Ub,] <- (self$statespace[Ub, vars, drop = FALSE] - D[Ub, vars, drop = FALSE])/(delta_x)
+  grad[["UD"]][Ub,] <- (self$statespace[Ub, vars, drop = FALSE] - D[Ub, vars, drop = FALSE])/(delta_xy[2])
 
   ij <- data.frame()  
   jnames <- grep("Rook", names(self$statespace), value = TRUE)
@@ -298,8 +298,9 @@ generator_design_gr <- function(self, formula){
   for( i in 1:4 ){
     j <- self$statespace[, jnames[i]]
     deltaf <- data.frame(dir[jnames[i]]*grad[[df_dir[i]]])
+    deltaf$dxy <- delta_xy[jxy[i]]
     xy <- as.numeric(self$statespace[[jxy[i]]][ids])
-    names(deltaf) <- vars
+    names(deltaf) <- c(vars, "dxy")
     ij <- rbind(ij, data.frame(i = ids, j = j, dir = as.numeric(dir[jnames[i]]), coord = as.numeric(coord[jnames[i]]), xy = xy))
     DF <- rbind(DF, deltaf)
   }
@@ -309,6 +310,7 @@ generator_design_gr <- function(self, formula){
 
   self$design_ou <- ij[,3:5]
   ij <- ij[,1:2]
+  self$delta_xy <- DF$dxy
   
   X <- model.matrix(formula, data = DF)
   self$designmatrix <- as.matrix(X)
@@ -386,7 +388,7 @@ reList <- function(pars){
 #'  
 #' @export
 initCheck <- function(self, alpha, beta, gamma = NULL, verbose = FALSE){
-  dx <- self$resolution[1]
+  dx <- self$delta_xy
   ndesign <- ncol(self$designmatrix)
   xbeta <- self$designmatrix %*% beta[1:ndesign]
   if(!is.null(gamma)){
