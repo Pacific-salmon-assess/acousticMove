@@ -21,7 +21,7 @@ NULL
 #' @field sim_move Simulated true movement when running a simulation.
 #' @field observations Processed observations ready for analysis.
 #' @field emissionrate Rate that the tags phyiscally ping.
-#' @field pars initial values for fitting the model.
+#' @field par initial values for fitting the model.
 #' @field negll Negative log likelihood RTMB object.
 #' @field gr_negll Gradient of the negative log likelihood.
 #' @field lookup_animal_id Lookup matrix for matching animal id.
@@ -48,7 +48,7 @@ acousticModel <- R6::R6Class("acousticModel",
     sim_move = NULL,
     observations = NULL,
     emissionrate = NULL,
-    pars = NULL,
+    par = NULL,
     negll = NULL,
     gr_negll = NULL,
     lookup_animal_id = NULL,
