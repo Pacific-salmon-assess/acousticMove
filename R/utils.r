@@ -368,11 +368,11 @@ extractControls <- function(controlValue, defaultValue){
 #' @export
 reList <- function(pars){
   out <- list()
-  out$alpha <- as.numeric(exp(pars[names(pars) == "logalpha"]))
-  out$beta <- as.numeric(pars[names(pars) == "beta"])
-  if("logitq" %in% names(pars)) out$q <- as.numeric(plogis(pars[names(pars) == "logitq"]))
-  if("gamma" %in% names(pars)) out$gamma <- matrix(as.numeric(pars[names(pars) == "gamma"]), ncol = 2)
-  if("logmu" %in% names(pars)) out$mu <- as.numeric(exp(pars[names(pars) == "logmu"]))
+  out$alpha <- as.numeric(exp(pars[grep("logalpha", names(pars))]))
+  out$beta <- as.numeric(pars[grep("beta", names(pars))])
+  if("logitq" %in% names(pars)) out$q <- as.numeric(plogis(pars[grep("logitq", names(pars))]))
+  if("gamma" %in% names(pars)) out$gamma <- matrix(as.numeric(pars[grep("gamma", names(pars))]), ncol = 2)
+  if("logmu" %in% names(pars)) out$mu <- as.numeric(exp(pars[grep("logmu", names(pars))]))
   return(out)
 }
 

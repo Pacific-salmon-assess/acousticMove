@@ -190,7 +190,7 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
     alpha <- exp(theta[grep("logalpha", names(theta))])
     beta <- theta[grep("beta", names(theta))]
     if(mmpp){
-      q <- 1/(1+exp(-theta[grep("logitq", names(theta))]))
+      q <- plogis(theta[grep("logitq", names(theta))])
     }
     if(includemortality){
       mu <- exp(theta[grep("logmu", names(theta))])
@@ -204,7 +204,8 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
     }
     
     ## Build Generator:
-    Q <- make_generator(alpha, beta, mu, gamma, nstates, delta_xy, absorbingstates, itoj, designmatrix, design_ou)
+    Q <- make_generator(alpha = alpha, beta = beta, mu = mu, gamma = gamma, nstates = nstates, dx = delta_xy, 
+                        absorbingstates = absorbingstates, itoj = itoj, designmatrix =  designmatrix, design_ou = design_ou)
     
     ## Remove Detection rate from generator if MMPP.
     if(mmpp){
@@ -217,7 +218,6 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
   F <- MakeTape(expAv_atomic, theta)
   return(F)
 }
-
 
 make_expav_atomic_approx <- function(self, n = 1, delta = 0.1, alpha, beta, q, mu = NULL, gamma = NULL, control = list()){
 
