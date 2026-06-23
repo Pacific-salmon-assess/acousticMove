@@ -67,12 +67,27 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// expAv_approx_cpp
+arma::vec expAv_approx_cpp(const arma::sp_mat& A, const arma::vec& v, const arma::vec& lambda, double tol);
+RcppExport SEXP _acousticMove_expAv_approx_cpp(SEXP ASEXP, SEXP vSEXP, SEXP lambdaSEXP, SEXP tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const arma::sp_mat& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type v(vSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(expAv_approx_cpp(A, v, lambda, tol));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_acousticMove_inplace_transpose_sparse", (DL_FUNC) &_acousticMove_inplace_transpose_sparse, 1},
     {"_acousticMove_expAv_cpp", (DL_FUNC) &_acousticMove_expAv_cpp, 5},
     {"_acousticMove_fast_multiply", (DL_FUNC) &_acousticMove_fast_multiply, 4},
     {"_acousticMove_expAv_gr_cpp", (DL_FUNC) &_acousticMove_expAv_gr_cpp, 7},
+    {"_acousticMove_expAv_approx_cpp", (DL_FUNC) &_acousticMove_expAv_approx_cpp, 4},
     {NULL, NULL, 0}
 };
 

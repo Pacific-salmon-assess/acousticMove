@@ -17,7 +17,7 @@
 #' `times` vector of each time step, and `path` matrix of the expected path for each animal.
 #'
 #' @export
-vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tstart = 0, tend = NULL, deltat = NULL, control = list()){
+vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, deltat = NULL, control = list()){
 
   N <- length(self$observations)
   if(is.vector(gamma)){
@@ -28,39 +28,46 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
   if(is.null(tend)) tend <- self$studyperiod
   if(is.null(deltat)) deltat <- 1
 
-  tsteps = seq(tstart, tend, by = deltat)
-  nsteps <- length(tsteps)
   nstates <- self$nstates + !is.null(mu)
   
-  control$tranpose <- FALSE
+  control$transpose <- FALSE
   control$tolerance <- 1e-8
-  expAv_atomic <- make_expav_atomic(self, alpha, beta, q, mu, gamma[1,1:2], control = control)
+  gamma_check <- NULL
+  if(!is.null(gamma)) gamma_check <- c(0,0)
+  calc_Q <- make_Q_rtmb(self, alpha = alpha, beta = beta, q = q, mu = mu, gamma = gamma_check, control = control) 
 
-  control$tranpose <- TRUE
-  expAv_tranpose <- make_expav_atomic(self, alpha, beta, q, mu, gamma[1,1:2], control = control)
-
-  theta <- c(numeric(nstates), 0, alpha, beta, q)
-  if(!is.null(mu)) theta <- c(theta, mu)
+  ## Par order must be logalpha, beta, logitq, logmu, gamma.    
+  theta <- log(alpha)
+  theta <- c(theta, beta)
+  theta <- c(theta, log(q/(1-q)))
+  if(!is.null(mu)) theta <- c(theta, log(mu))    
   if(!is.null(gamma)){
-    indx_gamma <- length(theta) + 1:2
     theta <- c(theta, gamma[1,1:2])
+    gammaid <- (length(theta)-1):length(theta)
   }
-  N <- length(self$observations)
+  tstart <- 0
+  tend <- ceiling(max(self$observations$time)/deltat)*deltat
+  tsteps = seq(tstart, tend, by = deltat)
+  nsteps <- length(tsteps)
+  
+  N <- max(self$observations$animal_id)
   forward_all <- array(0, c(N, nstates, nsteps))
   reverse_all <- array(0, c(N, nstates, nsteps))
   path_all <- NULL
 
-  # Q <- make_generator(self, alpha, beta, nstates, delta_x)
-  # detRate <- self$emissionrate*q
-  # for(i in seq_along(self$detectors$state_id)) Q[self$detectors$state_id[i], self$detectors$state_id[i]] <- Q[self$detectors$state_id[i], self$detectors$state_id[i]] - detRate
-
   for( k in 1:N ){
+    if(!is.null(gamma)) theta[gammaid] <- gamma[i,]
+    Q <- calc_Q(theta)
+
     detsk <- self$observations |> subset(animal_id == k)
+    detsk[, "time"] <- detsk[, "time"] - min(detsk[, "time_prev"])
+    detsk[, "time_prev"] <- detsk[, "time_prev"] - min(detsk[, "time_prev"])
+
+    tsteps = seq(tstart, tend, by = deltat)
+    nsteps <- length(tsteps)
   
     forwardprob <- matrix(0, nrow = nstates, ncol = nsteps)
     forwardprob[detsk[1, "state_id_prev"],1] <- 1
-
-    if(!is.null(gamma)) theta[indx_gamma] <- gamma[k,1:2]
 
     ## Forward algorithm for MMPP.
     for(i in 2:nsteps ){
@@ -71,17 +78,13 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
       forwardprob[,i] <- forwardprob[,i-1]
       if(nobsi > 0){
         for(j in 1:nobsi){ 
-          theta[1:nstates] <- forwardprob[,i]
-          theta[nstates+1] <- detski$deltat[j]
-          forwardprob[,i] <- expAv_tranpose(theta)
+          forwardprob[,i] <- acousticMove:::expAv_cpp(Q*detski$deltat[j], forwardprob[,i], 1e-8, 25, TRUE)
           t0 <- detski$time[j]
           forwardprob[detski$state_id[j],i] <- forwardprob[detski$state_id[j],i]*self$emissionrate*q
           forwardprob[-detski$state_id[j],i] <- 0
         }
       }
-      theta[1:nstates] <- forwardprob[,i]
-      theta[nstates+1] <- (t1-t0)
-      forwardprob[,i] <- expAv_tranpose(theta)
+      forwardprob[,i] <-  acousticMove:::expAv_cpp(Q*(t1-t0), forwardprob[,i], 1e-8, 25, TRUE)
       lfp <- log(forwardprob[,i])
       maxlfp <- max(lfp)
       forwardprob[,i] <- exp(lfp - (log(sum(exp(lfp-maxlfp))) + maxlfp))
@@ -90,9 +93,6 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
     ## Backward algorithm for MMPP.
     backwardprob <- matrix(0, nrow = nstates, ncol = nsteps)
     backwardprob[,nsteps] <- 1  
-    # if(!is.null(self$observations[[k]]$known_fate)){
-      # backwardprob[,nsteps] <- observations[[i]]$known_fate["time"]-timesi[nobsi]
-    # }
     for(i in 1:(nsteps-1) ){
       t0 <- tsteps[nsteps-i]
       t1 <- tsteps[nsteps-i+1]
@@ -101,17 +101,13 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
       backwardprob[,nsteps-i] <- backwardprob[,nsteps-i+1]
       if(nobsi > 0){
         for(j in 1:nobsi){
-          theta[1:nstates] <- backwardprob[,nsteps-i]
-          theta[nstates+1] <- (t1 - detski$time_prev[nobsi-j+1])
-          backwardprob[,nsteps-i] <- expAv_atomic(theta)
+          backwardprob[,nsteps-i] <- acousticMove:::expAv_cpp(Q*(t1 - detski$time_prev[nobsi-j+1]), backwardprob[,nsteps-i], 1e-8, 25, FALSE)
           t1 <- t1 - (t1 - detski$time_prev[nobsi-j+1])
           backwardprob[detski$state_id_prev[nobsi-j+1],nsteps-i] <- backwardprob[detski$state_id_prev[nobsi-j+1],nsteps-i]*self$emissionrate*q
           backwardprob[-detski$state_id_prev[nobsi-j+1],nsteps-i] <- 0
         }
       }
-      theta[1:nstates] <- backwardprob[,nsteps-i]
-      theta[nstates+1] <- (t1-t0)  
-      backwardprob[,nsteps-i] <- expAv_atomic(theta)
+      backwardprob[,nsteps-i] <- acousticMove:::expAv_cpp(Q*(t1-t0), backwardprob[,nsteps-i], 1e-8, 25, FALSE)
       lfp <- log(backwardprob[,nsteps-i])
       maxlfp <- max(lfp)
       backwardprob[,nsteps-i] <- exp(lfp - (log(sum(exp(lfp-maxlfp))) + maxlfp))
@@ -123,9 +119,7 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tst
     for(i in 1:(nsteps-1) ){
       t0 <- tsteps[nsteps-i]
       t1 <- tsteps[nsteps-i+1]
-      theta[1:nstates] <- forwardprob[,nsteps-i+1]
-      theta[nstates+1] <- (t1-t0)
-      path[nsteps-i] <- which.max(expAv_atomic(theta))
+      path[nsteps-i] <- which.max(acousticMove:::expAv_cpp(Q*(t1-t0), forwardprob[,nsteps-i+1], 1e-8, 25, FALSE))
     }
 
     forward_all[k,,] <- forwardprob
@@ -278,7 +272,7 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
 #' @return nlminb fitted object.
 #'
 #' @export
-fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = list()){
+make_negll_gr <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = list()){
 
   silent <- extractControls(control$silent, TRUE)
   trace <- extractControls(control$trace, 0)
@@ -426,9 +420,12 @@ fit_negll <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control = l
   if(random_start) x <- initValues(self, x)
   ## Make sure beta is not negative for OU process... Best to confirm that should be true.
   if(!is.null(gamma) & x[grep("beta", names(x))][length(beta)] < 0) x[grep("beta", names(x))][length(beta)] <- 0.0001
-  fit <- suppressWarnings(nlminb(x, negll_gr, \(x){cached_env$grad}, control = list(trace = trace)))
-  self$estimated_pars <- reList(fit$par)
-  return(fit)
+  self$par <- x
+  self$negll <- negll_gr
+  self$gr_negll <- \(x){cached_env$grad}
+  # fit <- suppressWarnings(nlminb(x, negll_gr, \(x){cached_env$grad}, control = list(trace = trace)))
+  # self$estimated_pars <- reList(fit$par)
+  # return(fit)
 }
 
 #' Build Likelihood for CTMC animal movement.

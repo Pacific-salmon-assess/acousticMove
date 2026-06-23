@@ -42,3 +42,14 @@ expAv_gr_cpp <- function(A, dA, v, tol, renorm_freq, row_indx, col_ptr) {
     .Call(`_acousticMove_expAv_gr_cpp`, A, dA, v, tol, renorm_freq, row_indx, col_ptr)
 }
 
+#' Compute Linear approximation of expAv and gradient of expAv jointly
+#' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
+#' @param v Vector (column vector) of to do exp(A)*v.
+#' @param lambda Vector (column vector) of detection rate.
+#' @param tol Tolerance default = 1e-8.
+#' @param trans Logical to confirm if we should do transpose of A.
+#' @details Computes joint expAv and the gradient as implemented in 'Differentiated uniformization: a new method for inferring Markov chains on combinatorial state spaces including stochastic epidemic models'.
+expAv_approx_cpp <- function(A, v, lambda, tol) {
+    .Call(`_acousticMove_expAv_approx_cpp`, A, v, lambda, tol)
+}
+

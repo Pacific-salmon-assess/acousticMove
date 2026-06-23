@@ -169,18 +169,18 @@ arma::vec expAv_approx_cpp(const arma::sp_mat& A, const arma::vec& v,
 }
 
 
-//' Compute Linear approximation of expAv and gradient of expAv jointly
-//' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
-//' @param dA A matrix that has row of non-zero gradient of A and columns for each parameter.
-//' @param v Vector (column vector) of to do exp(A)*v
-//' @param pdet Vector (column vector) of exp(-Lambda)
-//' @param dpdet Vector (column vector) of gradient of exp(-Lambda)
-//' @param tol Tolerance default = 1e-8.
-//' @param renorm_freq Renoramlization frequency to avoid computational overload from rho^n/n!.
-//' @param trans Logical to confirm if we should do transpose of A.
-//' @param row_indx Row index from column-sparse matrix "dgCMatrix" \code{A@i}.
-//' @param col_ptr Column pointer from column-sparse matrix "dgCMatrix" \code{A@p}.
-//' @details Computes joint expAv and the gradient as implemented in 'Differentiated uniformization: a new method for inferring Markov chains on combinatorial state spaces including stochastic epidemic models'.
+// //' Compute Linear approximation of expAv and gradient of expAv jointly
+// //' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
+// //' @param dA A matrix that has row of non-zero gradient of A and columns for each parameter.
+// //' @param v Vector (column vector) of to do exp(A)*v
+// //' @param pdet Vector (column vector) of exp(-Lambda)
+// //' @param dpdet Vector (column vector) of gradient of exp(-Lambda)
+// //' @param tol Tolerance default = 1e-8.
+// //' @param renorm_freq Renoramlization frequency to avoid computational overload from rho^n/n!.
+// //' @param trans Logical to confirm if we should do transpose of A.
+// //' @param row_indx Row index from column-sparse matrix "dgCMatrix" \code{A@i}.
+// //' @param col_ptr Column pointer from column-sparse matrix "dgCMatrix" \code{A@p}.
+// //' @details Computes joint expAv and the gradient as implemented in 'Differentiated uniformization: a new method for inferring Markov chains on combinatorial state spaces including stochastic epidemic models'.
 //// [[Rcpp::export]]
 // Rcpp::List expAv_gr_approx_cpp(const arma::sp_mat& A, arma::mat dA, const arma::vec& v, 
                                // const arma::vec& pdet, const arma::vec& dpdet, double tol,

@@ -61,12 +61,11 @@ plot_path <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, a
     s_init[sample(self$nstates, 1)] <- 1
   }
   Q <- self$calculateQ(alpha, beta, mu, gamma)
-  Pt <- Matrix::expm(Q*deltat)
   tx <- seq(tstart, tend, deltat)
   psum <- numeric(nrow(Q))
   pnew <- s_init
   for( i in seq_along(tx) ) {
-    pnew <- pnew %*% Pt
+    pnew <- acousticMove:::expAv_cpp(Q*deltat, pnew, 1e-8, 25, TRUE)
     psum <- psum + pnew*deltat
   }
   if(expected){

@@ -37,7 +37,11 @@ An R6 base class that is used to fit a Markov modulated Poisson process to acous
 
 \item{\code{emissionrate}}{Rate that the tags phyiscally ping.}
 
+\item{\code{pars}}{initial values for fitting the model.}
+
 \item{\code{negll}}{Negative log likelihood RTMB object.}
+
+\item{\code{gr_negll}}{Gradient of the negative log likelihood.}
 
 \item{\code{lookup_animal_id}}{Lookup matrix for matching animal id.}
 
@@ -46,6 +50,8 @@ An R6 base class that is used to fit a Markov modulated Poisson process to acous
 \item{\code{lookup_statespace}}{Lookup matrix for matching state space and locations.}
 
 \item{\code{estimated_pars}}{List of estimated parameters.}
+
+\item{\code{delta_xy}}{Distance between states pairwise.}
 }
 \if{html}{\out{</div>}}
 }
@@ -62,7 +68,7 @@ An R6 base class that is used to fit a Markov modulated Poisson process to acous
 \item \href{#method-acousticModel-processData}{\code{acousticModel$processData()}}
 \item \href{#method-acousticModel-simFit}{\code{acousticModel$simFit()}}
 \item \href{#method-acousticModel-fitMove}{\code{acousticModel$fitMove()}}
-\item \href{#method-acousticModel-fitModel}{\code{acousticModel$fitModel()}}
+\item \href{#method-acousticModel-buildModel}{\code{acousticModel$buildModel()}}
 \item \href{#method-acousticModel-clone}{\code{acousticModel$clone()}}
 }
 }
@@ -308,7 +314,8 @@ Process either data from real observations or from the simulation.
   detections = NULL,
   releases = NULL,
   known_fates = NULL,
-  absorbing_states = NULL
+  absorbing_states = NULL,
+  studyperiod = NULL
 )}\if{html}{\out{</div>}}
 }
 
@@ -322,6 +329,8 @@ Process either data from real observations or from the simulation.
 \item{\code{known_fates}}{Time and states of known fates of animals.}
 
 \item{\code{absorbing_states}}{States that are absorbing if the animal arrives.}
+
+\item{\code{studyperiod}}{How long was the study run for.}
 }
 \if{html}{\out{</div>}}
 }
@@ -443,12 +452,12 @@ Run simulation only if simulation hasn't been run. Then process data as fixed in
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-acousticModel-fitModel"></a>}}
-\if{latex}{\out{\hypertarget{method-acousticModel-fitModel}{}}}
-\subsection{Method \code{fitModel()}}{
-Fit Model with Joint Likelihood Gradient
+\if{html}{\out{<a id="method-acousticModel-buildModel"></a>}}
+\if{latex}{\out{\hypertarget{method-acousticModel-buildModel}{}}}
+\subsection{Method \code{buildModel()}}{
+Build Model with Joint Likelihood Gradient
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{acousticModel$fitModel(
+\if{html}{\out{<div class="r">}}\preformatted{acousticModel$buildModel(
   alpha,
   beta,
   q,
@@ -482,7 +491,7 @@ Fit Model with Joint Likelihood Gradient
 \if{html}{\out{</div>}}
 }
 \subsection{Details}{
-Run simulation and then fit using \code{nlminb}.
+Build negative log likelihood and gradient to be used for optimization.
 }
 
 }

@@ -394,7 +394,7 @@ initCheck <- function(self, alpha, beta, gamma = NULL, verbose = FALSE){
   if(!is.null(gamma)){
     xbeta <- xbeta + beta[ndesign+1]*self$design_ou[,1]*(gamma[self$design_ou[,2]] - self$design_ou[,3])
   }
-  test <- alpha^2 - dx * max(abs(xbeta))
+  test <- alpha^2 - max(dx * abs(xbeta))
   if(test <= 0 & verbose){
     cat("[Warning] alpha value is too small relative to beta. Minimum is ", sqrt(alpha^2 + abs(test)),".\n")
   }
@@ -417,7 +417,7 @@ initValues <- function(self, pars){
   pars[names(pars) == "logmu"] <- pars[names(pars) == "logmu"] + rnorm(1, 0, 0.5)
   pars[grep("gamma", names(pars))] <- pars[grep("gamma", names(pars))] + rnorm(sum(grepl("gamma", names(pars))), 0, 3)*self$resolution[1]
   pars_norm <- reList(pars)
-  test <- initCheck(self, pars_norm$alpha, pars_norm$beta, drop(pars_norm$gamma[1,]), FALSE)
+  test <- initCheck(self, alpha = pars_norm$alpha, beta = pars_norm$beta, gamma = drop(pars_norm$gamma[1,]), verbose = FALSE)
   if(test <= 0) pars["logalpha"] <- log(sqrt(pars_norm$alpha^2 + abs(test))) + 0.01
   return(pars)
 }

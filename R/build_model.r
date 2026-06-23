@@ -21,11 +21,14 @@ NULL
 #' @field sim_move Simulated true movement when running a simulation.
 #' @field observations Processed observations ready for analysis.
 #' @field emissionrate Rate that the tags phyiscally ping.
+#' @field pars initial values for fitting the model.
 #' @field negll Negative log likelihood RTMB object.
+#' @field gr_negll Gradient of the negative log likelihood.
 #' @field lookup_animal_id Lookup matrix for matching animal id.
 #' @field lookup_detector_id Lookup matrix for matching detectors.
 #' @field lookup_statespace Lookup matrix for matching state space and locations.
 #' @field estimated_pars List of estimated parameters.
+#' @field delta_xy Distance between states pairwise.
 #'
 #' @export
 acousticModel <- R6::R6Class("acousticModel",
@@ -45,7 +48,9 @@ acousticModel <- R6::R6Class("acousticModel",
     sim_move = NULL,
     observations = NULL,
     emissionrate = NULL,
+    pars = NULL,
     negll = NULL,
+    gr_negll = NULL,
     lookup_animal_id = NULL,
     lookup_detector_id = NULL,
     lookup_statespace = NULL,
@@ -174,11 +179,14 @@ acousticModel <- R6::R6Class("acousticModel",
     #' @details Run simulation and then fit using `nlminb`.
     simFit = function(N, alpha, beta, q, gamma = NULL, emissionrate = 720, studyperiod, mu = NULL, absorbingstates = NULL, startbbox = NULL, formula = NULL, control = list()){
       self$simulate(N, alpha, beta, q, gamma, formula, emissionrate, studyperiod, absorbingstates, startbbox, mu)
-      self$makeADFun(alpha = alpha, beta = beta, q = q, mu, gamma, control = control)
-      pars <- initValues(self, self$negll$par)  
+      # self$makeADFun(alpha = alpha, beta = beta, q = q, mu, gamma, control = control)
+      # pars <- initValues(self, self$negll$par)
       trace <- extractControls(control$trace, 0)
-      fit <- nlminb(pars, self$nll$fn, self$nll$gr, control = list(trace = trace)) ## suppressWarnings(
-      self$estimated_pars <- reList(pars = fit$par)
+      self$emissionrate <- emissionrate
+      self$studyperiod <- studyperiod
+      make_negll_gr(self, alpha, beta, q, gamma, mu, control = control)
+      fit <- suppressWarnings(nlminb(self$pars, self$negll, self$gr_negll, control = list(trace = trace)))
+      self$estimated_pars <- reList(fit$par)
       return(fit)
     },
     #' @description Simulate and Fit Movement Using Telemetry Data on a fixed Interval.
@@ -204,7 +212,7 @@ acousticModel <- R6::R6Class("acousticModel",
       self$estimated_pars <- reList(pars = fit$par)
       return(fit)
     },
-    #' @description Fit Model with Joint Likelihood Gradient
+    #' @description Build Model with Joint Likelihood Gradient
     #' @param alpha Diffusion rate.
     #' @param beta Advection rates.
     #' @param q Detection probability.
@@ -213,13 +221,11 @@ acousticModel <- R6::R6Class("acousticModel",
     #' @param studyperiod Time period of the study.
     #' @param mu Rate of mortality per unit time.
     #' @param control List of object controls which include tolerance, rescale_freq, Nmax, uniformization, trace that controls the RTMB function \code{expAv}.
-    #' @details Run simulation and then fit using `nlminb`.    
-    fitModel = function(alpha, beta, q, gamma = NULL, emissionrate = 720, studyperiod, mu = NULL, control = list()){
+    #' @details Build negative log likelihood and gradient to be used for optimization. 
+    buildModel = function(alpha, beta, q, gamma = NULL, emissionrate = 720, studyperiod, mu = NULL, control = list()){
       self$emissionrate <- emissionrate
       self$studyperiod <- studyperiod
-
-      fit <- fit_negll(self, alpha, beta, q, gamma, mu, control = control)
-      return(fit)
+      make_negll_gr(self, alpha, beta, q, gamma, mu, control = control)
     }
   )
 )

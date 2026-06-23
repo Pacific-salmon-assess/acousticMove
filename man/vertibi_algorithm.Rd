@@ -11,8 +11,6 @@ vertibi_algorithm(
   q,
   gamma = NULL,
   mu = NULL,
-  tstart = 0,
-  tend = NULL,
   deltat = NULL,
   control = list()
 )
@@ -30,13 +28,13 @@ vertibi_algorithm(
 
 \item{mu}{Mortality rate per unit time (default = NULL).}
 
-\item{tstart}{Start time of algorithm (default = 0).}
-
-\item{tend}{End time of algoirthm (default = NULL).}
-
 \item{deltat}{Time step to use (default = NULL).}
 
 \item{control}{List of control values (default = list()).}
+
+\item{tstart}{Start time of algorithm (default = 0).}
+
+\item{tend}{End time of algoirthm (default = NULL).}
 }
 \value{
 List of \code{forwardprob} an array for each animal each time step the probability in each location,  \code{backwardprob} an array for each animal each step the probability in each location,

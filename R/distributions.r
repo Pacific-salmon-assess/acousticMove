@@ -161,10 +161,10 @@ make_Q_rtmb <- function(self, alpha, beta, q, mu = NULL, gamma = NULL, control =
 
   nstates <- self$nstates + includemortality
 
-  theta <- c("logalpha" = log(alpha), "beta" = beta)
-  if(mmpp) theta <- c(theta, "logitq" = log(q/(1-q)))
-  if(includemortality) theta <- c(theta, "logmu" = log(mu))
-  if(ouprocess) theta <- c(theta, "gamma" = gamma)
+  theta <- c("logalpha" = log(unname(alpha)), "beta" = unname(beta))
+  if(mmpp) theta <- c(theta, "logitq" = log(unname(q)/(1-unname(q))))
+  if(includemortality) theta <- c(theta, "logmu" = log(unname(mu)))
+  if(ouprocess) theta <- c(theta, "gamma" = unname(gamma))
   names(theta) <- gsub("[0-9]", "", names(theta))
   
   delta_xy <- self$delta_xy
