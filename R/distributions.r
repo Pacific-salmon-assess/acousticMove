@@ -27,13 +27,16 @@ make_generator <- function(alpha, beta, mu = NULL, gamma = NULL, nstates, dx, ab
     }
 
     dx2 <- dx*dx
-    Q[itoj] <- (alpha^2 + dx*xbeta)/(2*dx2)
+    input <- (alpha^2 + dx*xbeta)/(2*dx2)
+    
+    ## Upwinding:
+    Q[itoj] <- 0.5*input + 0.5*abs(input)
 
     if(!is.null(mu)) {
       Q[-nstates, nstates] <- mu
     }
     if(!is.null(absorbingstates)) Q[absorbingstates,] <- 0
-    
+        
     diag(Q) <- -rowSums(Q)
     return(Q)
 }

@@ -37,7 +37,7 @@ An R6 base class that is used to fit a Markov modulated Poisson process to acous
 
 \item{\code{emissionrate}}{Rate that the tags phyiscally ping.}
 
-\item{\code{pars}}{initial values for fitting the model.}
+\item{\code{par}}{initial values for fitting the model.}
 
 \item{\code{negll}}{Negative log likelihood RTMB object.}
 

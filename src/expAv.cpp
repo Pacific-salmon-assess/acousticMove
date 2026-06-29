@@ -63,6 +63,57 @@ arma::vec expAv_cpp(const arma::sp_mat& A, const arma::vec& v, double tol, int r
   return ans;
 }
 
+//' Compute expAv'
+//' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
+//' @param dv Matrix of dv/dtheta for expAv', with nrows = nrow(A) and ncols = length(theta) to compute exp(A)*dv.
+//' @param tol Tolerance default = 1e-8.
+//' @param renorm_freq Renoramlization frequency to avoid computational overload from rho^n/n!.
+//' @param trans Logical to confirm if we should do transpose of A.
+//' @details Implements Sherlock 2021 uniformization method, simply a version of expAv that allows for v to be a matrix.
+// [[Rcpp::export]]
+arma::sp_mat expAdv_cpp(const arma::sp_mat& A, const arma::sp_mat& dv, double tol, int renorm_freq, bool trans = false) {
+  const double rho=-A.min();
+  if (rho==0) {
+    return dv;
+  }
+  const int nr=A.n_rows, nc=A.n_cols;
+  const unsigned int niters = ::Rf_qpois( tol, rho, false, false);
+  unsigned int n;
+  arma::sp_mat P = A+rho*arma::speye(nr, nc);
+    
+  arma::sp_mat term = dv, ans = dv;
+
+  if(trans) inplace_transpose_sparse(P);
+  
+  const int npars = dv.n_cols;
+  arma::vec log_scale(npars, fill::zeros);
+  double s = 0.0;
+  // Rcout << "rho: " << rho << std::endl;
+  // Rcout << "N: " << niters << std::endl;
+
+  n=1;
+  while (n<=niters) {
+    term/=n;
+    term = P*term;
+    
+    ans = ans + term;
+    
+    if(n % renorm_freq == 0){
+      for( int i = 0; i<npars; ++i){
+        s =  arma::as_scalar(arma::sum(arma::abs(ans.col(i))));
+        term.col(i) /= s;
+        ans.col(i) /= s;
+        log_scale(i) += log(s);
+      }
+    }
+    n++;
+  }
+  for( int i = 0; i<npars; ++i){
+    ans.col(i) *= exp(-rho + log_scale(i));
+  }
+  return ans;
+}
+
 //' Fast Multiply of multiple sparse matrix vector.
 //' @param dA Dense matrix with each column the non-zero values of a sparse matrix.
 //' @param term Vector to multiply against matrix.

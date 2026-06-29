@@ -19,6 +19,17 @@ expAv_cpp <- function(A, v, tol, renorm_freq, trans = FALSE) {
     .Call(`_acousticMove_expAv_cpp`, A, v, tol, renorm_freq, trans)
 }
 
+#' Compute expAv'
+#' @param A A sparse matrix from R of \code{class(A) == "dgCMatrix"}.
+#' @param dv Matrix of dv/dtheta for expAv', with nrows = nrow(A) and ncols = length(theta) to compute exp(A)*dv.
+#' @param tol Tolerance default = 1e-8.
+#' @param renorm_freq Renoramlization frequency to avoid computational overload from rho^n/n!.
+#' @param trans Logical to confirm if we should do transpose of A.
+#' @details Implements Sherlock 2021 uniformization method, simply a version of expAv that allows for v to be a matrix.
+expAdv_cpp <- function(A, dv, tol, renorm_freq, trans = FALSE) {
+    .Call(`_acousticMove_expAdv_cpp`, A, dv, tol, renorm_freq, trans)
+}
+
 #' Fast Multiply of multiple sparse matrix vector.
 #' @param dA Dense matrix with each column the non-zero values of a sparse matrix.
 #' @param term Vector to multiply against matrix.
