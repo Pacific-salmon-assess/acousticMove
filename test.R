@@ -12,7 +12,7 @@ library(Rcpp)
 library(RcppArmadillo)
 library(RTMB)
 data("sim_1")
-sourceCpp("src/expAv.cpp")
+# sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.1)
@@ -25,6 +25,35 @@ studyperiod <- 50
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
 Q <- obj$calculateQ(alpha, beta, mu, gamma)
+obj$simulate(N=10, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
+obj$buildModel(alpha = alpha, beta = beta, q = q, gamma = gamma, mu = NULL,
+                   studyperiod = studyperiod, emissionrate = emissionrate, control = list(trace = 1, random_start = TRUE))
+fit <- nlminb(obj$par, obj$negll, obj$gr_negll, control = list(trace = 1))
+ests <- reList(fit$par)
+alpha <- ests$alpha
+beta <- ests$beta
+q <- ests$q
+
+tictoc::tic()
+obj$negll(obj$par)
+obj$gr_negll(obj$par)
+tictoc::toc()
+
+obj$makeADFun(alpha = alpha, beta = beta, q = q, gamma = gamma, mu = NULL, control = list(tolerance = 1e-8, rescale_freq = 20))
+par <- obj$par
+par[1:2] <- obj$par[2:3]
+par[3] <- obj$par[1]
+
+tictoc::tic()
+obj$negll$fn(par)
+obj$negll$gr(par)
+tictoc::toc()
+
+
+
+fit2 <- nlminb(obj$negll$par, obj$negll$fn, obj$negll$gr, control = list(trace = 1))
+
+
 
 vid <- calc_states(obj, data.frame(x=0.5, y=0.5))
 v <- numeric(obj$nstates)

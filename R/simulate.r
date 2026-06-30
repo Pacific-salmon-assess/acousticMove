@@ -33,7 +33,7 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
   }else{ check_gamma <- NULL }
 
   test <- initCheck(self, alpha, beta, check_gamma, verbose = FALSE)
-  if(test <= 0) stop("alpha value is too small relative to beta. Minimum is ", sqrt(alpha^2 + abs(test)),".\n")
+  if(test <= 0) cat("[Warning]  alpha value is too small relative to beta. Minimum is ", sqrt(alpha^2 + abs(test)),".\n")
   
   rookstates <- cbind(self$statespace[,grep("Rook", names(self$statespace))])  ## Add mortality state
   if(!is.null(mu)) rookstates <- cbind(rookstates, m+1)  
@@ -52,8 +52,7 @@ simulate_mmpp <- function(self, N, alpha, beta, q = 0.3, gamma = NULL, startbbox
     Q <- make_generator(alpha = alpha, beta = beta, mu = mu, gamma = gamma[i,], nstates = nstates, dx = self$delta_xy, 
                         self$absorbingstates, self$itoj, self$designmatrix, self$design_ou)
     Qd <- -diag(Q)  ## Exit rate:
-    if(any(Qd < 0)) stop("Negative exit rate (positive diagonal) for some state in the generator Q.")
-    
+    # if(any(Qd < 0)) stop("Negative exit rate (positive diagonal) for some state in the generator Q.")
     statei <- x0[i]
     timei <- 0
     obsi <- data.frame(animal_id = i, state_id = x0[i], detector_id = NA, time = 0)
