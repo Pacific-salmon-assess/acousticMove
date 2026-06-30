@@ -106,7 +106,7 @@ acousticModel <- R6::R6Class("acousticModel",
       if(!is.null(emissionrate)) self$emissionrate <- emissionrate
 
       test <- initCheck(self, alpha, beta, gamma, verbose = FALSE)
-      if(test <= 0) stop("alpha value is too small relative to beta. Minimum is ", sqrt(alpha^2 + abs(test)),".\n")
+      if(test <= 0) cat("[Warning]  alpha value is too small relative to beta. Minimum is ", sqrt(alpha^2 + abs(test)),".\n")
 
       self$absorbingstates <- absorbingstates
       simulate_mmpp(self, N=N, alpha=alpha, beta=beta, q=q, gamma=gamma, startbbox = startbbox, mu = mu)
