@@ -28,18 +28,27 @@
 #' @export
 plot_limit <- function(self, alpha, beta, gamma, mu, layer, label, quantiles = NULL){
   p <- calcLimit(self, alpha, beta, gamma, mu)
+  p[p < 0] <- 0
+  p <- p/sum(p)
+  pord <- order(p)
+  p <- p[pord]
+  statespace <- self$statespace[pord,]
+  cdf <- cumsum(p)
   if(is.null(quantiles)) quantiles <- c(0.95, 0.8, 0.5)
-  plot_1 <- ggplot(data = obj$statespace, aes(x=x, y=y)) + 
+  breaks <- NULL
+  for( i in seq_along(quantiles) ) breaks <- c(breaks, min(p[cdf >= 1 - quantiles[i]]))
+  plot_1 <- ggplot(data = statespace, aes(x=x, y=y)) + 
     geom_tile(aes(fill = .data[[layer]])) +
     scale_fill_viridis_c(label) +
     theme_bw() + 
     geom_contour(aes(x = x, y = y, z = p, linetype = factor(after_stat(level))), 
-                 breaks = quantile(p, quantiles), colour = "black", linewidth = 1) + 
+                 breaks = breaks, colour = "black", linewidth = 1) + 
     coord_fixed() +
     scale_linetype("Quantile", labels = paste0(100*sort(quantiles, decreasing = TRUE), "%")) +
     xlab("X") + ylab("Y")
   if(!is.null(gamma))  plot_1 <- plot_1 + geom_point(data = data.frame(x=gamma[1], y=gamma[2]), aes(x=x,y=y), col = 'red', size = 1, shape = 4, stroke = 2)
   invisible(print(plot_1))
+  return(plot_1)
 }
 
 #' Plot Expected Path

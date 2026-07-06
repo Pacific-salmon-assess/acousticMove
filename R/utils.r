@@ -439,7 +439,7 @@ calcLimit <- function(self, alpha, beta, gamma, mu){
   Q <- self$calculateQ(alpha, beta, mu, gamma)
 
   ## Linear Algebra solve: pi*Q = 0 and sum(pi) == 1.
-  A <- rbind(t(Q), rep(1, nrow(Q)))
+  A <- rbind(Matrix::t(Q), rep(1, nrow(Q)))
   b <- c(numeric(nrow(Q)), 1)
   prob <- solve(A[-1,], b[-1])
   return(prob)

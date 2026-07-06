@@ -333,7 +333,7 @@ ggplot(data = grid, aes(x=x, y=y)) +
 seed = sample(10000, 20)
 for( i in 1:20 ){
 set.seed(seed[i])
-grid <- simulate_gmrf(x = seq(0, 1, length = 41), y = seq(0, 1, length = 41), nhabitat = 1, kappa = 1)
+grid <- simulate_gmrf(x = seq(0, 1, length = 101), y = seq(0, 1, length = 101), nhabitat = 1, kappa = 0.99)
 grid$habitat_1 <- scale(grid$habitat_1)
   p <- ggplot(data = grid, aes(x=x, y=y)) + 
     geom_tile(aes(fill = habitat_1)) +
