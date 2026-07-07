@@ -126,8 +126,10 @@ arma::mat fast_multiply(const arma::mat& dA, const arma::vec& term, const std::v
   arma::mat dQw(ncols, npars, fill::zeros);
 
   for(int j = 0; j < ncols; ++j){
-    for(int k = col_ptr[j]; k < col_ptr[j+1]; ++k){
-      dQw.row(row_indx[k]) += dA.row(k) * term[j];
+    if(term[j] != 0){
+      for(int k = col_ptr[j]; k < col_ptr[j+1]; ++k){
+        dQw.row(row_indx[k]) += dA.row(k) * term[j];
+      }
     }
   }
   return dQw;
