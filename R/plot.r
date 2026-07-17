@@ -178,3 +178,100 @@ plot_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init 
   invisible(print(plot_1))
   return(plot_1)
 }
+
+
+#' Plot Expected Time along with Path
+#'
+#'
+#' @param self R6 object containing statespace and receivers.
+#' @param deltat Time steps to discretize
+#' @param tstart Time to start computation.
+#' @param tend Time to end computation.
+#' @param s_init Initial location of the animal as a vector e.g. (0,0,0,1).
+#' @param s_end Final location of the animal as a vector e.g. (0,0,0,1).
+#' @param alpha Diffusion rate.
+#' @param beta Advection rates.
+#' @param mu Mortality rate.
+#' @param gamma Centre of attraction.
+#' 
+#' @details Solve for limiting distribution pi, as pi %*% Q = 0, and sum(pi) = 1.
+#' 
+#' @return Vector of limiting probabilities, assuming that a steady state solution exists.
+#' @export
+plot_observed_path <- function(self, id = 1, deltat = 0.1, tend = NULL, alpha, beta, gamma, mu, q, emissionrate){
+  Q <- self$calculateQ(alpha, beta, mu, gamma)
+  lambda <- numeric(self$nstates)
+  for( i in 1:nrow(self$detectors) ) lambda[self$detectors$state_id[i]] <- lambda[self$detectors$state_id[i]] + q*emissionrate
+  A <- Q - diag(lambda)  
+
+  obs <- self$observations |> subset(animal_id == id)  
+  tstart <- min(obs$time_prev)
+  if(is.null(tend)){
+    tend <- max(obs$time) - tstart
+  }
+  obs <- obs |> subset(time < tend + tstart)
+
+  nstates <- nrow(Q)
+  expected_time <- numeric(nstates)
+  path <- NULL
+  deltaT <- deltat
+  for( k in 1:nrow(obs)){
+    s0 <- numeric(nstates)
+    s1 <- s0
+    s0[obs[k,"state_id_prev"]] <- 1
+    s1[obs[k,"state_id"]] <- 1
+    dt <- obs[k,"deltat"]
+    ndiv <- dt %/% deltaT    
+    if(ndiv < 2) ndiv = 3
+    deltat <- dt/ndiv
+    ## Midpoint Rule to integrate v1*exp(Qs)exp(Q(t-s))v2ds to then compute expected time.
+    tx <- seq(0 + deltat/2, dt - deltat/2, deltat)
+    
+    nsteps <- length(tx)  
+    pforward <- matrix(acousticMove:::expAv_cpp(A*(tx[1]-tstart), s0, 1e-8, 25, TRUE), ncol=1)
+    tf <- tx[1]
+    for( i in 1:(nsteps-1) ){
+      pforward <- cbind(pforward, acousticMove:::expAv_cpp(A*(tx[i+1]-tx[i]), pforward[,i], 1e-8, 25, TRUE))
+    }
+
+    preverse <- acousticMove:::expAv_cpp(A*(dt-tx[nsteps]), s1, 1e-8, 25, FALSE)
+    expected_timek <- deltat*pforward[,nsteps]*preverse
+    for( i in 1:(nsteps-1)) {
+      preverse <- acousticMove:::expAv_cpp(A*(tx[nsteps-i+1]-tx[nsteps-i]), preverse, 1e-8, 25, FALSE)    
+      expected_timek <- expected_timek + deltat*pforward[,nsteps-i]*preverse
+    }
+    
+    pall <- acousticMove:::expAv_cpp(A*(dt-tx[nsteps]), pforward[,nsteps], 1e-8, 25, TRUE)[which.max(s1)]
+    expected_timek <- expected_timek/pall
+    expected_time <- expected_time + expected_timek
+    
+    ## Make path:
+    v <- s1
+    pathk <- numeric(nsteps + 2)  
+    pathk[nsteps+1] <- which.max(s1)
+    pathk[1] <- which.max(s0)
+    for(i in 1:(nsteps-1) ){
+      if(i == 1 ){  d <- dt - tx[nsteps]
+      }else{ d <- tx[i+1]-tx[i] }
+      tmp <- pforward[,nsteps-i+1]*acousticMove:::expAv_cpp(A*d, v, 1e-8, 25, FALSE)
+      maxk <- which.max(tmp)
+      v <- numeric(self$nstates)
+      v[maxk] <- 1
+      pathk[nsteps-i+1] <- maxk
+    }
+    locs_pathk <- data.frame(self$statespace[pathk,])
+    path <- rbind(path, locs_pathk)
+    # cat("Computing observation: ", k, "\n")
+  }
+  plot_1 <- ggplot(data = self$statespace, aes(x=x, y=y)) + 
+    geom_tile(aes(fill = expected_time)) +
+    scale_fill_viridis_c("Expected Time") +
+    theme_bw() + 
+    coord_fixed() +
+    xlab("X") + ylab("Y") + 
+    geom_point(data = self$statespace[self$detectors$state_id,], aes(x = x, y = y), shape = 3, col = 'grey', size = 1) +
+    geom_path(data = path, aes(x = x, y = y), col = 'red')# +
+    # geom_point(data = locs_path, aes(x = x, y = y), col = 'red')    
+  invisible(print(plot_1))
+  return(plot_1)
+}
