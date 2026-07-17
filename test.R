@@ -15,7 +15,7 @@ data("sim_1")
 # sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
-beta <- c(0.03, 0.1)
+beta <- c(0.03, 0.5)
 q <- 0.03
 mu <- NULL
 gamma <- c(0.5, 0.5)
@@ -29,6 +29,11 @@ obj$simulate(N=10, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=em
 obj$buildModel(alpha = alpha, beta = beta, q = q, gamma = gamma, mu = NULL,
                    studyperiod = studyperiod, emissionrate = emissionrate, control = list(trace = 1, random_start = TRUE))
 fit <- nlminb(obj$par, obj$negll, obj$gr_negll, control = list(trace = 1))
+
+obj$buildModel(alpha = alpha, beta = beta, q = q, gamma = gamma, mu = NULL,
+                   studyperiod = studyperiod, emissionrate = emissionrate, control = list(trace = 1, random_start = FALSE))
+fit2 <- nlminb(obj$par, obj$negll, obj$gr_negll, control = list(trace = 1))
+
 ests <- reList(fit$par)
 alpha <- ests$alpha
 beta <- ests$beta
@@ -60,13 +65,15 @@ v <- numeric(obj$nstates)
 v[vid] <- 1
 lambda <- numeric(obj$nstates)
 for( i in 1:nrow(obj$detectors) ) lambda[obj$detectors$state_id[i]] <- lambda[obj$detectors$state_id[i]] + emissionrate
-tmp <- expAv_approx_cpp(Q*5, v, lambda, 1e-8)
+tmp <- acousticMove:::expAv_approx_cpp(Q*5, v, lambda, 1e-8)
 Q2 <- Q-diag(lambda)
 tmp2 <- expAv(Q2*5, v)
 plot(tmp[,1], tmp2)
 abline(0, 1, col = 'red')
 idx <- which(abs(tmp2-tmp[,1]) > 1e-4)
 points(tmp[obj$detectors$state_id,1], tmp2[obj$detectors$state_id], col = 'red')
+
+
 
 niter <- qpois(1e-8,-min(diag(Q)),lower.tail = FALSE)
 # niter2 <- qpois(1e-8,-min(diag(Q2)),lower.tail = FALSE)
