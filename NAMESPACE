@@ -3,6 +3,8 @@
 export(acousticModel)
 export(calcLimit)
 export(calc_states)
+export(compute_expected_time)
+export(compute_observed_path)
 export(extend_detectors)
 export(extractControls)
 export(generator_design_gr)

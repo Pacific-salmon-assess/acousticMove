@@ -117,6 +117,41 @@ plot_path <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, a
 #' @return Vector of limiting probabilities, assuming that a steady state solution exists.
 #' @export
 plot_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, s_end = NULL, alpha, beta, gamma, mu, q, emissionrate){
+  output <- compute_expected_time(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, s_end = NULL, alpha, beta, gamma, mu, q, emissionrate)
+  locs <- data.frame(self$statespace[which(s_init > 0 | s_end > 0),])
+  plot_1 <- ggplot(data = self$statespace, aes(x=x, y=y)) + 
+    geom_tile(aes(fill = output$expected_time)) +
+    scale_fill_viridis_c("Expected Time") +
+    theme_bw() + 
+    coord_fixed() +
+    xlab("X") + ylab("Y") + 
+    geom_point(data = self$statespace[self$detectors$state_id,], aes(x = x, y = y), shape = 3, col = 'grey', size = 1) +
+    geom_point(data = locs, aes(x = x, y = y), col = 'red', shape = 1, size = 4) +
+    geom_path(data = output$path, aes(x = x, y = y), col = 'red')# +
+    # geom_point(data = locs_path, aes(x = x, y = y), col = 'red')    
+  invisible(print(plot_1))
+  return(plot_1)
+}
+
+#' Compute Expected time between two points
+#'
+#'
+#' @param self R6 object containing statespace and receivers.
+#' @param deltat Time steps to discretize
+#' @param tstart Time to start computation.
+#' @param tend Time to end computation.
+#' @param s_init Initial location of the animal as a vector e.g. (0,0,0,1).
+#' @param s_end Final location of the animal as a vector e.g. (0,0,0,1).
+#' @param alpha Diffusion rate.
+#' @param beta Advection rates.
+#' @param mu Mortality rate.
+#' @param gamma Centre of attraction.
+#' 
+#' @details Solve for limiting distribution pi, as pi %*% Q = 0, and sum(pi) = 1.
+#' 
+#' @return Vector of limiting probabilities, assuming that a steady state solution exists.
+#' @export
+compute_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, s_end = NULL, alpha, beta, gamma, mu, q, emissionrate){
   Q <- self$calculateQ(alpha, beta, mu, gamma)
   dt <- (tend - tstart)
   ndiv <- dt %/% deltat
@@ -163,42 +198,57 @@ plot_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init 
     path[nsteps-i+1] <- maxk
   }
   locs_path <- data.frame(self$statespace[path,])
-  locs <- data.frame(self$statespace[which(s_init > 0 | s_end > 0),])
-  
-  plot_1 <- ggplot(data = self$statespace, aes(x=x, y=y)) + 
-    geom_tile(aes(fill = expected_time)) +
-    scale_fill_viridis_c("Expected Time") +
-    theme_bw() + 
-    coord_fixed() +
-    xlab("X") + ylab("Y") + 
-    geom_point(data = self$statespace[self$detectors$state_id,], aes(x = x, y = y), shape = 3, col = 'grey', size = 1) +
-    geom_point(data = locs, aes(x = x, y = y), col = 'red', shape = 1, size = 4) +
-    geom_path(data = locs_path, aes(x = x, y = y), col = 'red')# +
-    # geom_point(data = locs_path, aes(x = x, y = y), col = 'red')    
-  invisible(print(plot_1))
-  return(plot_1)
+  list(expected_time = expected_time, path = locs_path)
 }
-
 
 #' Plot Expected Time along with Path
 #'
 #'
 #' @param self R6 object containing statespace and receivers.
+#' @param id Identity of animal to generate information.
 #' @param deltat Time steps to discretize
-#' @param tstart Time to start computation.
 #' @param tend Time to end computation.
-#' @param s_init Initial location of the animal as a vector e.g. (0,0,0,1).
-#' @param s_end Final location of the animal as a vector e.g. (0,0,0,1).
 #' @param alpha Diffusion rate.
 #' @param beta Advection rates.
-#' @param mu Mortality rate.
 #' @param gamma Centre of attraction.
+#' @param mu Mortality rate.
+#' @param q Detection probability.
+#' @param emissionrate Rate that the tags produce cues.
 #' 
-#' @details Solve for limiting distribution pi, as pi %*% Q = 0, and sum(pi) = 1.
-#' 
-#' @return Vector of limiting probabilities, assuming that a steady state solution exists.
 #' @export
 plot_observed_path <- function(self, id = 1, deltat = 0.1, tend = NULL, alpha, beta, gamma, mu, q, emissionrate){
+  output <- compute_observed_path(self, id, deltat, tend, alpha, beta, gamma, mu, q, emissionrate)
+  
+  plot_1 <- ggplot(data = self$statespace, aes(x=x, y=y)) + 
+    geom_tile(aes(fill = output$expected_time)) +
+    scale_fill_viridis_c("Expected Time") +
+    theme_bw() + 
+    coord_fixed() +
+    xlab("X") + ylab("Y") + 
+    geom_point(data = self$statespace[self$detectors$state_id,], aes(x = x, y = y), shape = 3, col = 'grey', size = 1) +
+    geom_path(data = output$path, aes(x = x, y = y), col = 'red') +
+    geom_point(data = self$statespace[output$obs$state_id,], aes(x = x, y = y), col = 'yellow', pch = 1)    
+  invisible(print(plot_1))
+  return(plot_1)
+}
+
+#' Compute observed path
+#'
+#'
+#' @param self R6 object containing statespace and receivers.
+#' @param id Identity of animal to generate information.
+#' @param deltat Time steps to discretize
+#' @param tend Time to end computation.
+#' @param alpha Diffusion rate.
+#' @param beta Advection rates.
+#' @param gamma Centre of attraction.
+#' @param mu Mortality rate.
+#' @param q Detection probability.
+#' @param emissionrate Rate that the tags produce cues.
+#' 
+#' @return Information needed for plotting observed paths.
+#' @export
+compute_observed_path <- function(self, id = 1, deltat = 0.1, tend = NULL, alpha, beta, gamma, mu, q, emissionrate){
   Q <- self$calculateQ(alpha, beta, mu, gamma)
   lambda <- numeric(self$nstates)
   for( i in 1:nrow(self$detectors) ) lambda[self$detectors$state_id[i]] <- lambda[self$detectors$state_id[i]] + q*emissionrate
@@ -261,17 +311,6 @@ plot_observed_path <- function(self, id = 1, deltat = 0.1, tend = NULL, alpha, b
     }
     locs_pathk <- data.frame(self$statespace[pathk,])
     path <- rbind(path, locs_pathk)
-    # cat("Computing observation: ", k, "\n")
   }
-  plot_1 <- ggplot(data = self$statespace, aes(x=x, y=y)) + 
-    geom_tile(aes(fill = expected_time)) +
-    scale_fill_viridis_c("Expected Time") +
-    theme_bw() + 
-    coord_fixed() +
-    xlab("X") + ylab("Y") + 
-    geom_point(data = self$statespace[self$detectors$state_id,], aes(x = x, y = y), shape = 3, col = 'grey', size = 1) +
-    geom_path(data = path, aes(x = x, y = y), col = 'red')# +
-    # geom_point(data = locs_path, aes(x = x, y = y), col = 'red')    
-  invisible(print(plot_1))
-  return(plot_1)
+  list(obs = obs, expected_time = expected_time, path = path)
 }
