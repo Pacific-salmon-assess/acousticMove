@@ -451,3 +451,30 @@ calcLimit <- function(self, alpha, beta, gamma, mu){
     prob <- prob / sum( prob )
   }
 }
+
+#' Calculate Limiting Probabilities
+#' 
+#' @param x0 Vector of parameter values
+#' @param f negll function from acousticMove object.
+#' @param gf gradient of negll that is computed upon computation of negll.
+#' @param h level of accuracy required.
+#' 
+#' @details Forward difference for Hessian finite differencing.
+#' 
+#' @return Hessian
+#' @export
+calc_hess_forward <- function (x0, f, gf, h = .Machine$double.eps^(1/4)) 
+{
+    fh0 <- f(x0)
+    gfh0 <- gf(x0)    
+    n <- length(x0)
+    H <- matrix(0, n , n)
+    for( i in 1:n ){
+      xnew <- x0
+      xnew[i] <- x0[i] + h
+      fhp <- f(xnew)
+      gfhp <- gf(xnew)
+      H[,i] <- (gfhp - gfh0)/h
+    }
+    return(H)
+}

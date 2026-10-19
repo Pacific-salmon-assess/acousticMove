@@ -13,6 +13,8 @@ library(RcppArmadillo)
 library(RTMB)
 data("sim_1")
 # sourceCpp("src/expAv.cpp")
+sourceCpp("src/EM_expAv.cpp")
+sourceCpp("src/expAv_telescoping.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.5)
@@ -21,18 +23,36 @@ mu <- NULL
 gamma <- c(0.5, 0.5)
 emissionrate <- 720
 studyperiod <- 50
+control <- list()
 
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
 Q <- obj$calculateQ(alpha, beta, mu, gamma)
-obj$simulate(N=10, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
+obj$simulate(N=5, alpha = alpha, beta=beta, q=q, gamma = gamma, emissionrate=emissionrate, studyperiod=studyperiod)
 obj$buildModel(alpha = alpha, beta = beta, q = q, gamma = gamma, mu = NULL,
                    studyperiod = studyperiod, emissionrate = emissionrate, control = list(trace = 1, random_start = TRUE))
 fit <- nlminb(obj$par, obj$negll, obj$gr_negll, control = list(trace = 1))
+self <- obj
+fit_mle <- fit
 
 obj$buildModel(alpha = alpha, beta = beta, q = q, gamma = gamma, mu = NULL,
                    studyperiod = studyperiod, emissionrate = emissionrate, control = list(trace = 1, random_start = FALSE))
 fit2 <- nlminb(obj$par, obj$negll, obj$gr_negll, control = list(trace = 1))
+
+## Check E(nij)
+lambda <- numeric(self$nstates)
+for( i in 1:nrow(self$detectors) ) lambda[self$detectors$state_id[i]] <- lambda[self$detectors$state_id[i]] + q*emissionrate
+A <- Q - diag(lambda)
+
+s_init <- numeric(obj$nstates)
+s_init[calc_states(obj, data.frame(x=0.75,y=0.75))] <- 1
+s_end <- numeric(obj$nstates) + 1
+s_end[calc_states(obj, data.frame(x=0.25,y=0.25))] <- 1
+
+enij <- expected_nij(A=A, v1=s_init, v2=s_end, itoj=obj$itoj, tau=10, delta=0.2, tol=1e-8, renorm_freq=25)
+taui <- enij[1:obj$nstates]
+nij <- enij[-(1:obj$nstates)]
+plot(taui)
 
 ests <- reList(fit$par)
 alpha <- ests$alpha

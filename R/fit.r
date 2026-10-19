@@ -19,7 +19,7 @@
 #' @export
 vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, deltat = NULL, control = list()){
 
-  N <- length(self$observations)
+  N <- length(unique(self$observations$animal_id))
   if(is.vector(gamma)){
     if(N > 1){ gamma <- t(replicate(N, gamma))
     }else{gamma <- matrix(gamma, nrow = 1, ncol = 2)} 
@@ -190,7 +190,7 @@ make_ad_fun_mmpp <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, cont
   studyperiod <- as.numeric(self$studyperiod)
 
   ## Build e^(Q-Lambda)*t * v as an atomic.
-  control$tranpose <- TRUE
+  control$transpose <- TRUE
   control$mmpp <- TRUE
   gamma_check <- NULL
   if(!is.null(gamma)) gamma_check <- c(0,0)
@@ -322,7 +322,7 @@ make_negll_gr <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control
   studyperiod <- as.numeric(self$studyperiod)
 
   ## Build e^(t(Q)-Lambda)*t * v as an atomic.
-  control$tranpose <- TRUE
+  control$transpose <- TRUE
   control$mmpp <- TRUE
   gamma_check <- NULL
   if(!is.null(gamma)) gamma_check <- c(0,0)
@@ -477,7 +477,7 @@ make_ad_fun_move <- function(self, alpha, beta, gamma = NULL, mu = NULL, control
   xmax <- max(self$designmatrix)
 
   ## Build e^(Q-Lambda)*t * v as an atomic.
-  control$tranpose <- TRUE
+  control$transpose <- TRUE
   control$mmpp <- FALSE
   gamma_check <- NULL
   if(!is.null(gamma)) gamma_check <- c(0,0)

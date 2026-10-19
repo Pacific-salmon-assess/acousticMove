@@ -117,7 +117,8 @@ plot_path <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, a
 #' @return Vector of limiting probabilities, assuming that a steady state solution exists.
 #' @export
 plot_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, s_end = NULL, alpha, beta, gamma, mu, q, emissionrate){
-  output <- compute_expected_time(self, deltat = 0.1, tstart = 0, tend = 1, s_init = NULL, s_end = NULL, alpha, beta, gamma, mu, q, emissionrate)
+  output <- compute_expected_time(self, deltat = 0.1, tstart = tstart, tend = tend, s_init = s_init, s_end = s_end, alpha, beta, gamma, mu, q, emissionrate)
+
   locs <- data.frame(self$statespace[which(s_init > 0 | s_end > 0),])
   plot_1 <- ggplot(data = self$statespace, aes(x=x, y=y)) + 
     geom_tile(aes(fill = output$expected_time)) +
@@ -178,11 +179,12 @@ compute_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_in
     expected_time <- expected_time + deltat*pforward[,nsteps-i]*preverse
   }
   
-  pall <- acousticMove:::expAv_cpp(A*dt, s_init, 1e-8, 25, TRUE)[which.max(s_end)]
-  pall <- acousticMove:::expAv_cpp(A*(tend-tx[nsteps]), pforward[,nsteps], 1e-8, 25, TRUE)[which.max(s_end)]
+  pall <- acousticMove:::expAv_cpp(A*(tend-tx[nsteps]), pforward[,nsteps], 1e-8, 25, TRUE)
+  pall <- sum(pall*s_end)
   expected_time <- expected_time/pall
-  # sum(expected_time)
-  
+  sum(expected_time)
+  # expected_time <- acousticMove:::expected_n(Q, s_init, s_end, rbind(c(1,1), c(1,2)), tend-tstart, deltat, 1e-8, 25, TRUE)
+
   ## Make path:
   v <- s_end
   path <- numeric(nsteps + 2)  
@@ -198,7 +200,8 @@ compute_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_in
     path[nsteps-i+1] <- maxk
   }
   locs_path <- data.frame(self$statespace[path,])
-  list(expected_time = expected_time, path = locs_path)
+  output <- list(expected_time = expected_time, path = locs_path)
+  return(output)
 }
 
 #' Plot Expected Time along with Path
