@@ -2,9 +2,9 @@
 % Please edit documentation in R/RcppExports.R
 \name{expAv_cpp}
 \alias{expAv_cpp}
-\title{Compute expAv}
+\title{Compute expAv via telescope}
 \usage{
-expAv_cpp(A, v, tol, renorm_freq, trans = FALSE)
+expAv_cpp(A, v, tol, renorm_freq, trans = FALSE, vmin = 0)
 }
 \arguments{
 \item{A}{A sparse matrix from R of \code{class(A) == "dgCMatrix"}.}
@@ -16,10 +16,12 @@ expAv_cpp(A, v, tol, renorm_freq, trans = FALSE)
 \item{renorm_freq}{Renoramlization frequency to avoid computational overload from rho^n/n!.}
 
 \item{trans}{Logical to confirm if we should do transpose of A.}
+
+\item{vmin}{Additional approximation by excluding some of the animal's path. Suggest keeping 0.}
 }
 \description{
-Compute expAv
+Compute expAv via telescope
 }
 \details{
-Implements Sherlock 2021 uniformization method.
+Implements Sherlock 2021 uniformization method, differs from expAv regular by taking advantage of sparsity of v.
 }

@@ -182,8 +182,9 @@ compute_expected_time <- function(self, deltat = 0.1, tstart = 0, tend = 1, s_in
   pall <- acousticMove:::expAv_cpp(A*(tend-tx[nsteps]), pforward[,nsteps], 1e-8, 25, TRUE)
   pall <- sum(pall*s_end)
   expected_time <- expected_time/pall
-  sum(expected_time)
+  # sum(expected_time)
   # expected_time <- acousticMove:::expected_n(Q, s_init, s_end, rbind(c(1,1), c(1,2)), tend-tstart, deltat, 1e-8, 25, TRUE)
+  # expected_time <- acousticMove:::EN(A = A, tau = tend-tstart, v1 = s_init, v2 = s_end, itoj = self$itoj, tol = 1e-8, tau_only = TRUE) 
 
   ## Make path:
   v <- s_end

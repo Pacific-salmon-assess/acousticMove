@@ -371,31 +371,17 @@ make_negll_gr <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control
       deltat <- observations$deltat[i]
       statei0 <- observations$state_id_prev[i]
       statei1 <- observations$state_id[i] 
-      v <- numeric(nstates)
-      v[statei0] <- 1
       if(!is.na(statei1)){
-        if(deltat < jump_min & statei0 == statei1){
-          ll_i <- Q[statei0, statei0]*deltat + logdetrate  ## Can't leave the state so simply exp(Qii)
-          ## Find diag in col sparse matrix:
-          rindx <- Q@i[Q@p[statei0]:(Q@p[statei0+1]-1) + 1] + 1
-          indx <- Q@p[statei0] + which(rindx == statei0)
-          gr_i <- Qgr[indx,]*deltat  + gr_logdetrate 
-        }else{ 
-          p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
-          ll_i <- log(p_gr[["ans"]][statei1]) + logdetrate
-          gr_i <- p_gr[["gr_ans"]][statei1,]/p_gr[["ans"]][statei1] + gr_logdetrate
-        }
+        p_gr <- acousticMove:::survival_gr_ctmc(A = Q*deltat, dA = Qgr*deltat, v_idx = statei0, 
+                                                v_other = statei1, tol = tol, renorm_freq = rescale_freq, vmin = 0, log = TRUE)
+        ll <- ll + p_gr[["ans"]] + logdetrate
+        gr <- gr + p_gr[["gr_ans"]] + gr_logdetrate
       }else{
-        p_gr <- acousticMove:::expAv_gr_cpp(Q*deltat, Qgr*deltat, v, tol, rescale_freq, Q@i, Q@p)
-        logpstate <- log(p_gr[["ans"]])
-        maxlp <- max(logpstate)
-        log_p_marg <- log(sum(exp(logpstate - maxlp))) + maxlp
-        ll_i <- log_p_marg
-        gr_i <- colSums(p_gr[["gr_ans"]])/exp(log_p_marg)
+        p_gr <- acousticMove:::survival_gr_ctmc(A = Q*deltat, dA = Qgr*deltat, v_idx = statei0, 
+                                                v_other = 0, tol = tol, renorm_freq = rescale_freq, vmin = 0, log = TRUE)
+        ll <- ll + p_gr$ans
+        gr <- gr + p_gr[["gr_ans"]]
       }
-      ll <- ll + ll_i
-      gr <- gr + gr_i
-      
       ## Per animal covariates e.g. activity centres.
       if(id != idnext & ngamma > 2){
         theta[ntheta:(ntheta+1) + 1] <- .gamma[(1:2) + (idnext-1)*2]

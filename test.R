@@ -14,7 +14,7 @@ library(RTMB)
 data("sim_1")
 # sourceCpp("src/expAv.cpp")
 sourceCpp("src/EM_expAv.cpp")
-sourceCpp("src/expAv_telescoping.cpp")
+sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.5)
@@ -49,10 +49,11 @@ s_init[calc_states(obj, data.frame(x=0.75,y=0.75))] <- 1
 s_end <- numeric(obj$nstates) + 1
 s_end[calc_states(obj, data.frame(x=0.25,y=0.25))] <- 1
 
-enij <- expected_nij(A=A, v1=s_init, v2=s_end, itoj=obj$itoj, tau=10, delta=0.2, tol=1e-8, renorm_freq=25)
-taui <- enij[1:obj$nstates]
-nij <- enij[-(1:obj$nstates)]
-plot(taui)
+et <- EN(A = Q, tau = 5, v1 = s_init, v2 = s_end, itoj = matrix(0, 2, 2), tol = 1e-8, tau_only = TRUE)
+et2 <- expected_n(Q, v1 = s_init, v2 = s_end, matrix(0, 2, 2), tau = 5, delta = 0.5, tol = 1e-8, renorm_freq = 10, tau_only = TRUE)
+plot(et,et2)
+
+
 
 ests <- reList(fit$par)
 alpha <- ests$alpha

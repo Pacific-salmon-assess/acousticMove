@@ -3,3 +3,4 @@ test_exponential.r
 test.R
 src/EM_expAv.cpp
 R/fitEM.r
+src/expAv_gradient.cpp

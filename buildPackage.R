@@ -30,3 +30,6 @@ usethis::use_rcpp()
 usethis::use_tidy_description()
 devtools::document()
 devtools::check()
+
+devtools::clean_dll()
+pkgbuild::compile_dll(here::here(), quiet = FALSE,  force = TRUE)

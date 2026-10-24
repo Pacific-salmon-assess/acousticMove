@@ -2,6 +2,7 @@
 
 export(acousticModel)
 export(calcLimit)
+export(calc_hess_forward)
 export(calc_states)
 export(compute_expected_time)
 export(compute_observed_path)
