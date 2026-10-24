@@ -380,7 +380,7 @@ make_negll_gr <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, control
         p_gr <- acousticMove:::survival_gr_ctmc(A = Q*deltat, dA = Qgr*deltat, v_idx = statei0, 
                                                 v_other = 0, tol = tol, renorm_freq = rescale_freq, vmin = 0, log = TRUE)
         ll <- ll + p_gr$ans
-        gr <- gr + p_gr[["gr_ans"]]
+        gr <- gr + t(p_gr[["gr_ans"]])
       }
       ## Per animal covariates e.g. activity centres.
       if(id != idnext & ngamma > 2){

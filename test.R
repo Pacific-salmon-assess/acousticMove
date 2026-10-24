@@ -13,8 +13,8 @@ library(RcppArmadillo)
 library(RTMB)
 data("sim_1")
 # sourceCpp("src/expAv.cpp")
-sourceCpp("src/EM_expAv.cpp")
-sourceCpp("src/expAv.cpp")
+# sourceCpp("src/EM_expAv.cpp")
+# sourceCpp("src/expAv.cpp")
 
 alpha <- 0.15
 beta <- c(0.03, 0.5)
