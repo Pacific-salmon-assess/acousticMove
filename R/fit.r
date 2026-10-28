@@ -84,7 +84,9 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, del
           forwardprob[-detski$state_id[j],i] <- 0
         }
       }
-      forwardprob[,i] <-  acousticMove:::expAv_cpp(Q*(t1-t0), forwardprob[,i], 1e-8, 25, TRUE)
+      if(t1!=t0) {
+        forwardprob[,i] <-  acousticMove:::expAv_cpp(Q*(t1-t0), forwardprob[,i], 1e-8, 25, TRUE)
+      }
       lfp <- log(forwardprob[,i])
       maxlfp <- max(lfp)
       forwardprob[,i] <- exp(lfp - (log(sum(exp(lfp-maxlfp))) + maxlfp))
@@ -101,13 +103,13 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, del
       backwardprob[,nsteps-i] <- backwardprob[,nsteps-i+1]
       if(nobsi > 0){
         for(j in 1:nobsi){
-          backwardprob[,nsteps-i] <- acousticMove:::expAv_cpp(Q*(t1 - detski$time_prev[nobsi-j+1]), backwardprob[,nsteps-i], 1e-8, 25, FALSE)
+          if(t1 != detski$time_prev[nobsi-j+1]) backwardprob[,nsteps-i] <- acousticMove:::expAv_cpp(Q*(t1 - detski$time_prev[nobsi-j+1]), backwardprob[,nsteps-i], 1e-8, 25, FALSE)
           t1 <- t1 - (t1 - detski$time_prev[nobsi-j+1])
           backwardprob[detski$state_id_prev[nobsi-j+1],nsteps-i] <- backwardprob[detski$state_id_prev[nobsi-j+1],nsteps-i]*self$emissionrate*q
           backwardprob[-detski$state_id_prev[nobsi-j+1],nsteps-i] <- 0
         }
       }
-      backwardprob[,nsteps-i] <- acousticMove:::expAv_cpp(Q*(t1-t0), backwardprob[,nsteps-i], 1e-8, 25, FALSE)
+      if(t1 != t0)  backwardprob[,nsteps-i] <- acousticMove:::expAv_cpp(Q*(t1-t0), backwardprob[,nsteps-i], 1e-8, 25, FALSE)
       lfp <- log(backwardprob[,nsteps-i])
       maxlfp <- max(lfp)
       backwardprob[,nsteps-i] <- exp(lfp - (log(sum(exp(lfp-maxlfp))) + maxlfp))

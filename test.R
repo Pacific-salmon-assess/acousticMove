@@ -25,6 +25,8 @@ emissionrate <- 720
 studyperiod <- 50
 control <- list()
 
+
+
 obj <- acousticModel$new(grid = sim_1$statespace, detectors = sim_1$detectors)
 obj$modelSetUp(formula = ~ 0 + habitat)
 Q <- obj$calculateQ(alpha, beta, mu, gamma)
