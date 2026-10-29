@@ -138,8 +138,8 @@ acousticModel <- R6::R6Class("acousticModel",
     #' @param delta_t Change in time to step through.
     #' @param control List of object controls which include tolerance, rescale_freq, Nmax, uniformization, trace that controls the RTMB function \code{expAv}.
     #' @details Run forward and backward algorithm to compute probability of where the animals were seen. Then use the Vertibi algorithm to estimate the most likely path the animal takes.
-    solveExpectedPath = function(alpha, beta, q, mu = NULL, gamma = NULL, delta_t = NULL, control = list()){
-      res <- vertibi_algorithm(self, alpha, beta, q, gamma, mu, delta_t, control)
+    solveExpectedPath = function(alpha, beta, q, mu = NULL, gamma = NULL, tstart = NULL, tend = NULL, delta_t = NULL, control = list()){
+      res <- vertibi_algorithm(self, alpha, beta, q, gamma, mu, tstart, tend, delta_t, control)
       return(res)
     },
     #' @description Compute the Movement Generator

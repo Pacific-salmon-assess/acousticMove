@@ -17,7 +17,7 @@
 #' `times` vector of each time step, and `path` matrix of the expected path for each animal.
 #'
 #' @export
-vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, deltat = NULL, control = list()){
+vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, tstart = NULL, tend = NULL, deltat = NULL, control = list()){
 
   N <- length(unique(self$observations$animal_id))
   if(is.vector(gamma)){
@@ -45,7 +45,7 @@ vertibi_algorithm <- function(self, alpha, beta, q, gamma = NULL, mu = NULL, del
     theta <- c(theta, gamma[1,1:2])
     gammaid <- (length(theta)-1):length(theta)
   }
-  tstart <- 0
+    if(is.null(tstart)) tstart <- 0
   tend <- ceiling(max(self$observations$time)/deltat)*deltat
   tsteps = seq(tstart, tend, by = deltat)
   nsteps <- length(tsteps)
